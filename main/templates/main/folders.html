@@ -1,0 +1,53 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Folders | Markdown Notes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2 class="greeting">Folders</h2>
+        <p class="sub-greeting">Organize your notes into collections.</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('new-folder-modal').style.display='flex'">
+        <i data-lucide="plus"></i>
+        New Folder
+    </button>
+</div>
+
+<div class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
+    {% for folder in folders %}
+<a href="{% url 'folder_detail' folder.id %}" style="text-decoration: none; color: inherit;">
+    <div class="card folder-card" style="display: flex; align-items: center; gap: 1.5rem; padding: 2rem;">
+        <div style="background: #fef3c7; color: #d97706; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="folder" style="width: 24px; height: 24px; fill: #d97706;"></i>
+        </div>
+        <div style="flex: 1;">
+            <h4 style="font-size: 1.125rem; font-weight: 700;">{{ folder.name }}</h4>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                {{ folder.notes.count }} notes
+            </div>
+        </div>
+    </div>
+</a>
+{% endfor %}
+</div>
+
+<!-- Simple "Modal" for New Folder -->
+<div id="new-folder-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card" style="width: 100%; max-width: 400px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Create New Folder</h3>
+        <form method="POST" action="{% url 'new_folder' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="folder-name">Folder Name</label>
+                <input type="text" id="folder-name" name="name" placeholder="e.g. Personal, Work, Ideas" required>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('new-folder-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Folder</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

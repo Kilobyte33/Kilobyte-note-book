@@ -1,0 +1,61 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Settings | Markdown Notes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in">
+    <h2 class="greeting">Settings</h2>
+    <p class="sub-greeting">Manage your account and app preferences.</p>
+</div>
+
+<div class="section-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: 280px 1fr;">
+    <div class="settings-sidebar">
+        <div class="card" style="padding: 0.75rem;">
+            <a href="#" class="nav-item active"><i data-lucide="user"></i> Account</a>
+            <a href="#" class="nav-item"><i data-lucide="palette"></i> Appearance</a>
+            <a href="#" class="nav-item"><i data-lucide="edit"></i> Editor</a>
+            <a href="#" class="nav-item"><i data-lucide="database"></i> Files & Storage</a>
+            <a href="#" class="nav-item"><i data-lucide="cloud"></i> Backup</a>
+            <a href="#" class="nav-item"><i data-lucide="info"></i> About</a>
+        </div>
+    </div>
+
+    <div class="settings-content">
+        <div class="card" style="margin-bottom: 2rem;">
+            <div class="section-title">Account</div>
+            <div class="form-group">
+                <label>Name</label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="text" value="{{ user.username }}" readonly style="background: var(--sidebar-active);">
+                    <button class="btn btn-outline" style="white-space: nowrap;">Change Name</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="email" value="{{ user.email|default:'alex@example.com' }}" readonly style="background: var(--sidebar-active);">
+                    <button class="btn btn-outline" style="white-space: nowrap;">Change Email</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Change Password</label>
+                <button class="btn btn-outline">Update Password</button>
+            </div>
+        </div>
+
+        <div class="card" style="border-color: #fee2e2;">
+            <div class="section-title" style="color: var(--danger);">Danger Zone</div>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem;">Deleting your account will permanently remove all your notes and data. This action cannot be undone.</p>
+            <button class="btn btn-outline" style="color: var(--danger); border-color: #fee2e2; background: #fff1f2;">Delete Account</button>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+            <a href="{% url 'logout' %}" class="btn btn-outline" style="color: var(--danger);">
+                <i data-lucide="log-out"></i>
+                Sign Out
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

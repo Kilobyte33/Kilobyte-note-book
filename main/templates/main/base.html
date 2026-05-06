@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kilobyte Note Book{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'main/css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated and not hide_sidebar %}
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">K</div>
+                <h1 class="logo-text">Kilobyte Note Book</h1>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i data-lucide="home"></i>
+                        Home
+                    </a>
+                    <a href="{% url 'home' %}" class="nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                        <i data-lucide="layout"></i>
+                        All Notes
+                    </a>
+                    
+                
+                    <a href="{% url 'recent_notes' %}" class="nav-item {% if request.resolver_match.url_name == 'recent_notes' %}active{% endif %}">
+                        <i data-lucide="clock"></i>
+                        Recent
+                    </a>
+                    <a href="{% url 'trash' %}" class="nav-item {% if request.resolver_match.url_name == 'trash' %}active{% endif %}">
+                        <i data-lucide="trash-2"></i>
+                        Trash
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Folders</div>
+                    {% for folder in user_folders %}
+                    <a href="{% url 'folders' %}" class="nav-item">
+                        <i data-lucide="folder"></i>
+                        {{ folder.name }}
+                    </a>
+                    {% empty %}
+                    <a href="{% url 'folders' %}" class="nav-item text-muted" style="font-size: 0.75rem;">
+                        <i data-lucide="plus-circle"></i>
+                        Create a folder
+                    </a>
+                    {% endfor %}
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="{% url 'settings' %}" class="nav-item">
+                    <i data-lucide="settings"></i>
+                    Settings
+                </a>
+                <a href="{% url 'logout' %}" class="nav-item text-danger">
+                    <i data-lucide="log-out"></i>
+                    Logout
+                </a>
+                <div class="user-profile">
+                    <div class="user-avatar">{{ user.username|first|upper }}</div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user.username }}</div>
+                        <div class="user-email">{{ user.email|default:"user@example.com" }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+        <div class="auth-wrapper">
+            {% if messages %}
+                <div class="messages" style="position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 1000; width: 100%; max-width: 400px; padding: 0 1rem;">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}" style="box-shadow: var(--shadow-md);">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block auth_content %}{% endblock %}
+        </div>
+    {% endif %}
+
+    <script>
+        lucide.createIcons();
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

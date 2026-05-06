@@ -1,0 +1,46 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard | Kilobyte Notes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in">
+    <h2 class="greeting">Good morning, {{ user.username }} 👋</h2>
+    <p class="sub-greeting">Here's what's happening with your notes today.</p>
+</div>
+
+<div class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
+    <div class="stat-card card">
+        <div class="stat-value">{{ notes_count }}</div>
+        <div class="stat-label">All Notes</div>
+    </div>
+    <div class="stat-card card">
+        <div class="stat-value">{{ folders_count }}</div>
+        <div class="stat-label">Folders</div>
+    </div>
+
+<div class="section-grid animate-fade-in" style="animation-delay: 0.2s;">
+    <div class="favorites-section">
+        <div class="section-title">Favorites</div>
+        <div class="card">
+            <ul style="list-style: none;">
+                {% for note in favorite_notes %}
+                <li style="margin-bottom: 1rem;">
+                    <a href="{% url 'note_view' note.id %}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-main); font-size: 0.875rem; font-weight: 500;">
+                        <i data-lucide="play" style="width: 14px; height: 14px; color: var(--primary); fill: var(--primary);"></i>
+                        {{ note.title }}
+                    </a>
+                </li>
+                {% empty %}
+                <li style="color: var(--text-muted); font-size: 0.875rem;">0 favorites</li>
+                {% endfor %}
+            </ul>
+            <button class="btn btn-outline w-100" style="margin-top: 1rem; justify-content: center;">View all</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .w-100 { width: 100%; }
+</style>
+{% endblock %}

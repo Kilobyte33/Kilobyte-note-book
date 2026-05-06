@@ -1,0 +1,18 @@
+{% extends 'main/base.html' %}
+
+{% block title %}{{ folder.name }}{% endblock %}
+
+{% block content %}
+<h2>{{ folder.name }}</h2>
+
+<div class="notes-list">
+    {% for note in notes %}
+        <div class="card" style="padding: 1.5rem; margin-bottom: 1rem;">
+            <h4>{{ note.title }}</h4>
+            <p>{{ note.content|truncatewords:20 }}</p>
+        </div>
+    {% empty %}
+        <p>No notes in this folder yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

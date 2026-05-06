@@ -1,0 +1,11 @@
+<body class="container mt-5">
+
+    <h2>Edit Note</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form }}
+        <button class="btn btn-success mt-2">Update</button>
+    </form>
+
+</body>

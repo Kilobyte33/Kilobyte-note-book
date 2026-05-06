@@ -1,0 +1,62 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Trash | Markdown Notes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2 class="greeting">Trash 🗑️</h2>
+        <p class="sub-greeting">Notes here will be permanently deleted after 30 days.</p>
+    </div>
+    
+    {% if trashed_notes %}
+    <a href="{% url 'empty_trash' %}" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);">
+        <i data-lucide="trash-2"></i>
+        Empty Trash
+    </a>
+    {% endif %}
+</div>
+
+<div class="card animate-fade-in" style="padding: 0; animation-delay: 0.1s;">
+    
+    {% for note in trashed_notes %}
+    <div class="note-list-item" style="padding: 1.25rem 1.5rem;">
+        <div class="note-info">
+            <h4 style="font-size: 1rem; color: var(--text-muted); text-decoration: line-through;">
+                {{ note.title }}
+            </h4>
+            <div class="note-meta">
+                Deleted {{ note.updated_at|timesince }} ago
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <!-- Restore -->
+            <a href="{% url 'restore_note' note.id %}" 
+        class="btn btn-outline"
+            onclick="return confirm('Restore this note?')"
+            style="padding: 0.5rem; color: var(--success);">
+            <i data-lucide="rotate-ccw"></i>
+            </a>
+
+            
+            <a href="{% url 'delete_forever' note.id %}" 
+        class="btn btn-outline"
+            onclick="return confirm('Delete permanently?')"
+            style="padding: 0.5rem; color: var(--danger);">
+            <i data-lucide="x-circle"></i>
+            </a>
+        </div>
+    </div>
+
+    {% empty %}
+    
+    <div style="padding: 4rem; text-align: center; color: var(--text-muted);">
+        <i data-lucide="trash-2" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+        <p>Your trash is empty. Good job!</p>
+    </div>
+    {% endfor %}
+
+</div>
+{% endblock %}

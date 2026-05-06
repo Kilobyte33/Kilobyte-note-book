@@ -1,0 +1,80 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Markdown Help | Markdown Notes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in">
+    <h2 class="greeting">Markdown Help / Cheatsheet</h2>
+    <p class="sub-greeting">A quick reference for markdown syntax.</p>
+</div>
+
+<div class="stats-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Headings</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div># H1 Heading</div>
+            <div>## H2 Heading</div>
+            <div>### H3 Heading</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Text Styling</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div>**Bold**</div>
+            <div>*Italic*</div>
+            <div>~~Strikethrough~~</div>
+            <div>`Inline Code`</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Lists</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div>- Unordered item</div>
+            <div>- Another item</div>
+            <div style="margin-top: 0.5rem;">1. Ordered item</div>
+            <div>2. Another item</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Links & Images</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div>[Link Text](URL)</div>
+            <div>![Alt text](ImageURL)</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Code Blocks</h4>
+        <pre style="font-family: monospace; font-size: 0.75rem; background: var(--sidebar-active); padding: 0.5rem; border-radius: 4px;">```javascript
+console.log("Hello");
+```</pre>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Blockquotes</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div>> This is a quote</div>
+            <div>> It can span lines</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Tables</h4>
+        <pre style="font-family: monospace; font-size: 0.75rem; background: var(--sidebar-active); padding: 0.5rem; border-radius: 4px;">| Col 1 | Col 2 |
+|-------|-------|
+| Val 1 | Val 2 |</pre>
+    </div>
+
+    <div class="card">
+        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Task List</h4>
+        <div style="font-family: monospace; font-size: 0.875rem;">
+            <div>- [x] Task done</div>
+            <div>- [ ] Task to do</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

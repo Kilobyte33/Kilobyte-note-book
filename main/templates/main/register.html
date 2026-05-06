@@ -1,0 +1,57 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Sign Up | Kilobyte Note Book{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-card card animate-fade-in">
+        <div class="auth-header">
+            <div class="logo-icon mx-auto" style="margin: 5px auto 1rem;">K</div>
+            <h2 class="auth-title">Create your account</h2>
+            <p class="auth-subtitle">Start your journey with Kilobyte Note Book</p>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger" style="color: var(--danger); background: #fee2e2; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Choose a username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="you@example.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Create a password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" style="justify-content: center; padding: 0.75rem;">Sign up</button>
+        </form>
+
+        <div class="auth-divider">
+            <span>or</span>
+        </div>
+
+        
+
+        <div style="text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-muted);">
+            Already have an account? <a href="{% url 'login' %}" style="color: var(--primary); font-weight: 600; text-decoration: none;">Login</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .w-100 { width: 100%; }
+</style>
+{% endblock %}

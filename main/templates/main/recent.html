@@ -1,0 +1,50 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Recent Notes | Kilobyte Note Book{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+        <h2 class="greeting">Recent Notes</h2>
+        <p class="sub-greeting">Notes updated in the last 7 days.</p>
+    </div>
+</div>
+
+
+<div class="notes-container">
+
+    {% if notes %}
+        <div class="notes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+            
+            {% for note in notes %}
+                <div class="note-card" style="padding: 15px; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    
+                    <h3>{{ note.title }}</h3>
+                    
+                    <p>
+                        {{ note.content|truncatewords:20 }}
+                    </p>
+                    
+                    <small style="color: gray;">
+                        Last updated: {{ note.updated_at|date:"M d, Y H:i" }}
+                    </small>
+
+                    <br><br>
+
+                    <a href="{% url 'note_view' note.id %}" class="btn" style="text-decoration: none; color: blue;">
+                        View Note
+                    </a>
+                </div>
+            {% endfor %}
+
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div style="text-align: center; margin-top: 50px;">
+            <p style="font-size: 18px; color: gray;">No recent notes found.</p>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

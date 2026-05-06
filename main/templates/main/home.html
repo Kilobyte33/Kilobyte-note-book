@@ -1,0 +1,69 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}All Notes | Kilobyte Note Book{% endblock %}
+
+{% block content %}
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2 class="greeting">My Notes 📝</h2>
+        <p class="sub-greeting">Manage and organize your thoughts.</p>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div style="position: relative;">
+            <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+            <input type="text" placeholder="Search notes..." style="padding-left: 2.5rem; width: 240px; font-size: 0.875rem;">
+        </div>
+        <button class="btn btn-primary" onclick="document.getElementById('new-note-form').scrollIntoView({behavior: 'smooth'})">
+            <i data-lucide="plus"></i>
+            New Note
+        </button>
+    </div>
+</div>
+
+<div class="section-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: 1fr;">
+    <div class="card" style="padding: 0; margin-bottom: 2rem;">
+        <div class="section-title" style="padding: 1.5rem 1.5rem 0.5rem;">Notes List</div>
+        {% for note in notes %}
+        <div class="note-list-item" style="padding: 1.25rem 1.5rem;">
+            <div class="note-info">
+                <a href="{% url 'note_view' note.id %}" style="text-decoration: none; color: inherit;">
+                    <h4 style="font-size: 1.125rem;">{{ note.title }}</h4>
+                </a>
+                <div class="note-meta">Updated {{ note.updated_at|timesince }} ago • {{ note.content|wordcount }} words</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="{% url 'edit_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem;"><i data-lucide="edit-3" style="width: 16px; height: 16px;"></i></a>
+                <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i></a>
+            </div>
+        </div>
+        {% empty %}
+        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+            <i data-lucide="file-text" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <p>No notes yet. Start by creating one below!</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="new-note-form" class="card animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="section-title">Create New Note</div>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" placeholder="Enter note title..." required>
+            </div>
+            <div class="form-group">
+                <label for="content">Content (Markdown)</label>
+                <textarea id="content" name="content" rows="6" placeholder="Write your thoughts in markdown..." required></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="save"></i>
+                    Save Note
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
