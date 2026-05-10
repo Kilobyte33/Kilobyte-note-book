@@ -1,18 +1,66 @@
 {% extends 'main/base.html' %}
+{% load static %}
 
-{% block title %}{{ folder.name }}{% endblock %}
+{% block title %}{{ folder.name }} | Kilobyte Note Book{% endblock %}
 
 {% block content %}
-<h2>{{ folder.name }}</h2>
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <a href="{% url 'folders' %}" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--text-muted); font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+            Back to Folders
+        </a>
+        <h2 class="greeting">
+            <i data-lucide="folder" style="width: 28px; height: 28px; vertical-align: middle; margin-right: 0.5rem; color: #d97706;"></i>
+            {{ folder.name }}
+        </h2>
+        <p class="sub-greeting">{{ notes|length }} note{{ notes|length|pluralize }} in this folder.</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('newNoteModal').style.display = 'flex'">
+        <i data-lucide="plus" style="width: 18px; height: 18px; margin-right: 0.5rem;"></i>
+        New Note
+    </button>
+</div>
 
-<div class="notes-list">
-    {% for note in notes %}
-        <div class="card" style="padding: 1.5rem; margin-bottom: 1rem;">
-            <h4>{{ note.title }}</h4>
-            <p>{{ note.content|truncatewords:20 }}</p>
+<div class="section-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: 1fr;">
+    <div class="card" style="padding: 0;">
+        {% for note in notes %}
+        <a href="{% url 'note_view' note.id %}" style="text-decoration: none; color: inherit; display: block;">
+            <div class="note-list-item" style="padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="note-info">
+                    <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem;">{{ note.title }}</h4>
+                    <div class="note-meta">Updated {{ note.updated_at|timesince }} ago &bull; {{ note.content|wordcount }} words</div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                    <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.5rem;" onclick="event.stopPropagation();">
+                        <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+                    </a>
+                    <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);" onclick="event.stopPropagation();">
+                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                    </a>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+            <i data-lucide="file-text" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <p>No notes in this folder yet.</p>
         </div>
-    {% empty %}
-        <p>No notes in this folder yet.</p>
-    {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div id="newNoteModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 400px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Create New Note</h3>
+        <form method="POST" action="{% url 'create_note_in_folder' folder.id %}">
+            {% csrf_token %}
+            <input type="text" name="title" placeholder="Note Title" required style="width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.5rem;">
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('newNoteModal').style.display = 'none'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

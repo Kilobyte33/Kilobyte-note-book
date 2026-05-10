@@ -6,10 +6,15 @@ from django.db.models import Sum
 from main.models import Note, Folder, UserSettings
 from .forms import NoteForm
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect
+import json
+import zipfile
+import io
+import re
+from django.http import HttpResponse
 
 @login_required(login_url='/login/')
 def dashboard(request):
@@ -44,14 +49,31 @@ def new_folder(request):
             Folder.objects.create(name=name, user=request.user)
             return redirect('folders')
     return render(request, 'main/folders.html', {'folders': Folder.objects.filter(user=request.user), 'error': 'Folder name required'})
+@login_required(login_url='/login/')
 def folder_detail(request, folder_id):
-    folder = get_object_or_404(Folder, id=folder_id)
-    notes = folder.notes.all()  
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+    notes = folder.notes.filter(is_trashed=False)
 
     return render(request, 'main/folder_detail.html', {
         'folder': folder,
         'notes': notes
     })
+
+
+@login_required(login_url='/login/')
+def create_note_in_folder(request, folder_id):
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip() or 'Untitled Note'
+        note = Note.objects.create(
+            title=title,
+            content='',
+            user=request.user,
+            folder=folder,
+        )
+        return redirect('split_editor', id=note.id)
+    # GET — just redirect back
+    return redirect('folder_detail', folder_id=folder_id)
 
 
 @login_required(login_url='/login/')
@@ -144,12 +166,90 @@ def logout_user(request):
 
 @login_required(login_url='/login/')
 def settings(request):
-    settings, _ = UserSettings.objects.get_or_create(user=request.user)
+    user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
+
     if request.method == 'POST':
-        dark_mode = bool(request.POST.get('dark_mode'))
-        settings.dark_mode = dark_mode
-        settings.save()
-    return render(request, 'main/settings.html', {'settings': settings})
+        action = request.POST.get('action')
+
+        if action == 'appearance':
+            user_settings.dark_mode = 'dark_mode' in request.POST
+            user_settings.save()
+            messages.success(request, 'Appearance saved.')
+
+        elif action == 'editor':
+            mode = request.POST.get('editor_mode', 'split')
+            if mode in ('split', 'preview', 'edit'):
+                user_settings.editor_mode = mode
+                user_settings.save()
+            messages.success(request, 'Editor preference saved.')
+
+        elif action == 'password':
+            current = request.POST.get('current_password', '')
+            new_pw  = request.POST.get('new_password', '')
+            confirm = request.POST.get('confirm_password', '')
+            user = request.user
+            if not user.check_password(current):
+                messages.error(request, 'Current password is incorrect.')
+            elif len(new_pw) < 6:
+                messages.error(request, 'New password must be at least 6 characters.')
+            elif new_pw != confirm:
+                messages.error(request, 'Passwords do not match.')
+            else:
+                user.set_password(new_pw)
+                user.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Password updated successfully.')
+
+        return redirect('settings')
+
+    # Storage stats
+    notes_count   = Note.objects.filter(user=request.user, is_trashed=False).count()
+    folders_count = Folder.objects.filter(user=request.user).count()
+    trashed_count = Note.objects.filter(user=request.user, is_trashed=True).count()
+    all_content   = Note.objects.filter(user=request.user, is_trashed=False).values_list('content', flat=True)
+    total_words   = sum(len(c.split()) for c in all_content)
+
+    return render(request, 'main/settings.html', {
+        'settings': user_settings,
+        'notes_count': notes_count,
+        'folders_count': folders_count,
+        'trashed_count': trashed_count,
+        'total_words': total_words,
+    })
+
+
+@login_required(login_url='/login/')
+def export_notes(request):
+    notes = Note.objects.filter(user=request.user, is_trashed=False)
+    
+    # Create an in-memory zip file
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Keep track of filenames to prevent duplicates in the zip
+        used_filenames = set()
+        
+        for note in notes:
+            # Create a safe filename from the note title
+            safe_title = re.sub(r'[\\/*?:"<>|]', "", note.title)
+            safe_title = safe_title.strip() or "Untitled_Note"
+            
+            # If the title already exists, append the note ID
+            filename = f"{safe_title}.md"
+            if filename in used_filenames:
+                filename = f"{safe_title}_{note.id}.md"
+            
+            used_filenames.add(filename)
+            
+            # Content of the markdown file
+            content = note.content or ""
+            
+            # Add file to zip
+            zip_file.writestr(filename, content)
+            
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="markdown_notes_backup.zip"'
+    return response
 
 @login_required(login_url='/login/')
 def trash(request):

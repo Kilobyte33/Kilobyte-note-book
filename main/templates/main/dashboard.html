@@ -5,42 +5,89 @@
 
 {% block content %}
 <div class="dashboard-header animate-fade-in">
-    <h2 class="greeting">Good morning, {{ user.username }} 👋</h2>
+    <h2 class="greeting">HI, {{ user.username }} 👋</h2>
     <p class="sub-greeting">Here's what's happening with your notes today.</p>
 </div>
 
+
 <div class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
-    <div class="stat-card card">
+    <a href="{% url 'home' %}" class="stat-card card" style="text-decoration: none; color: inherit; cursor: pointer;">
         <div class="stat-value">{{ notes_count }}</div>
         <div class="stat-label">All Notes</div>
-    </div>
-    <div class="stat-card card">
+    </a>
+        
+        <a href="#" class="stat-card card" style="text-decoration: none; color: inherit; cursor: pointer;">
         <div class="stat-value">{{ folders_count }}</div>
         <div class="stat-label">Folders</div>
-    </div>
+    </a>
 
-<div class="section-grid animate-fade-in" style="animation-delay: 0.2s;">
-    <div class="favorites-section">
-        <div class="section-title">Favorites</div>
-        <div class="card">
-            <ul style="list-style: none;">
-                {% for note in favorite_notes %}
-                <li style="margin-bottom: 1rem;">
-                    <a href="{% url 'note_view' note.id %}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-main); font-size: 0.875rem; font-weight: 500;">
-                        <i data-lucide="play" style="width: 14px; height: 14px; color: var(--primary); fill: var(--primary);"></i>
-                        {{ note.title }}
+    <a href="{% url 'folders' %}" class="stat-card card" style="text-decoration: none; color: inherit; cursor: pointer;">
+        <div class="stat-value">📂</div>
+        <div class="stat-label">Create Folder</div>
+
+    </a>
+</div>
+
+{# Recent Notes Section #}
+<div class="animate-fade-in" style="animation-delay: 0.2s; margin-top: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div class="section-title" style="margin: 0;">Recent Notes</div>
+        <a href="{% url 'recent_notes' %}" style="font-size: 0.875rem; color: var(--primary); text-decoration: none; font-weight: 500;">View all →</a>
+    </div>
+    <div class="card" style="padding: 0;">
+        {% for note in recent_notes %}
+        <a href="{% url 'note_view' note.id %}" style="text-decoration: none; color: inherit; display: block;">
+            <div class="note-list-item" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="note-info">
+                    <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem;">{{ note.title }}</h4>
+                    <div class="note-meta">Updated {{ note.updated_at|timesince }} ago</div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                    <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.4rem;" onclick="event.stopPropagation();">
+                        <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                     </a>
-                </li>
-                {% empty %}
-                <li style="color: var(--text-muted); font-size: 0.875rem;">0 favorites</li>
-                {% endfor %}
-            </ul>
-            <button class="btn btn-outline w-100" style="margin-top: 1rem; justify-content: center;">View all</button>
+                    <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.4rem; color: var(--danger);" onclick="event.stopPropagation();">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    </a>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+            <i data-lucide="file-text" style="width: 36px; height: 36px; margin-bottom: 0.75rem; opacity: 0.4;"></i>
+            <p style="font-size: 0.9rem;">No notes yet. <a href="{% url 'home' %}" style="color: var(--primary);">Create one!</a></p>
         </div>
+        {% endfor %}
     </div>
 </div>
 
+{# Favorite Notes Section #}
+{% if favorite_notes %}
+<div class="animate-fade-in" style="animation-delay: 0.3s; margin-top: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div class="section-title" style="margin: 0;">⭐ Favorites</div>
+    </div>
+    <div class="card" style="padding: 0;">
+        {% for note in favorite_notes %}
+        <a href="{% url 'note_view' note.id %}" style="text-decoration: none; color: inherit; display: block;">
+            <div class="note-list-item" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="note-info">
+                    <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem;">{{ note.title }}</h4>
+                    <div class="note-meta">{{ note.content|wordcount }} words</div>
+                </div>
+                <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.4rem; flex-shrink: 0;" onclick="event.stopPropagation();">
+                    <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+                </a>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <style>
     .w-100 { width: 100%; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); transition: all 0.2s ease; }
+    .note-list-item:hover { background: var(--bg-secondary, #f8f9fa); }
 </style>
 {% endblock %}

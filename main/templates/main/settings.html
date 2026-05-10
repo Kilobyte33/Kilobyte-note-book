@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}Settings | Markdown Notes{% endblock %}
+{% block title %}Settings | Kilobyte Note Book{% endblock %}
 
 {% block content %}
 <div class="dashboard-header animate-fade-in">
@@ -9,53 +9,354 @@
     <p class="sub-greeting">Manage your account and app preferences.</p>
 </div>
 
-<div class="section-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: 280px 1fr;">
-    <div class="settings-sidebar">
-        <div class="card" style="padding: 0.75rem;">
-            <a href="#" class="nav-item active"><i data-lucide="user"></i> Account</a>
-            <a href="#" class="nav-item"><i data-lucide="palette"></i> Appearance</a>
-            <a href="#" class="nav-item"><i data-lucide="edit"></i> Editor</a>
-            <a href="#" class="nav-item"><i data-lucide="database"></i> Files & Storage</a>
-            <a href="#" class="nav-item"><i data-lucide="cloud"></i> Backup</a>
-            <a href="#" class="nav-item"><i data-lucide="info"></i> About</a>
-        </div>
+<div class="settings-layout animate-fade-in" style="animation-delay:0.1s; display:grid; grid-template-columns:240px 1fr; gap:2rem; align-items:start;">
+
+    <!-- ── Sidebar ── -->
+    <div class="card" style="padding:0.5rem;">
+        <a href="#" class="nav-item settings-tab active" data-tab="account">
+            <i data-lucide="user"></i> Account
+        </a>
+        <a href="#" class="nav-item settings-tab" data-tab="appearance">
+            <i data-lucide="palette"></i> Appearance
+        </a>
+        <a href="#" class="nav-item settings-tab" data-tab="editor">
+            <i data-lucide="edit-2"></i> Editor
+        </a>
+        <a href="#" class="nav-item settings-tab" data-tab="storage">
+            <i data-lucide="database"></i> Files &amp; Storage
+        </a>
+        <a href="#" class="nav-item settings-tab" data-tab="backup">
+            <i data-lucide="cloud"></i> Backup
+        </a>
+        <a href="#" class="nav-item settings-tab" data-tab="about">
+            <i data-lucide="info"></i> About
+        </a>
     </div>
 
-    <div class="settings-content">
-        <div class="card" style="margin-bottom: 2rem;">
-            <div class="section-title">Account</div>
-            <div class="form-group">
-                <label>Name</label>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <input type="text" value="{{ user.username }}" readonly style="background: var(--sidebar-active);">
-                    <button class="btn btn-outline" style="white-space: nowrap;">Change Name</button>
+    <!-- ── Panels ── -->
+    <div class="settings-panels">
+
+        <!-- ────────────── ACCOUNT ────────────── -->
+        <div id="tab-account" class="settings-panel">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="section-title">Profile</div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" value="{{ user.username }}" readonly
+                           style="background:var(--sidebar-active); cursor:not-allowed;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Email</label>
+                    <input type="email" value="{{ user.email|default:'—' }}" readonly
+                           style="background:var(--sidebar-active); cursor:not-allowed;">
                 </div>
             </div>
-            <div class="form-group">
-                <label>Email</label>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <input type="email" value="{{ user.email|default:'alex@example.com' }}" readonly style="background: var(--sidebar-active);">
-                    <button class="btn btn-outline" style="white-space: nowrap;">Change Email</button>
-                </div>
+
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="section-title">Change Password</div>
+                <form method="POST" action="{% url 'settings' %}#account">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="password">
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" name="current_password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" name="new_password" placeholder="Min. 6 characters" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Confirm New Password</label>
+                        <input type="password" name="confirm_password" placeholder="Repeat new password" required>
+                    </div>
+                    <div style="margin-top:1.5rem;">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="lock" style="width:16px;height:16px;"></i>
+                            Update Password
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="form-group">
-                <label>Change Password</label>
-                <button class="btn btn-outline">Update Password</button>
+
+            <div class="card" style="border-color:#fee2e2;">
+                <div class="section-title" style="color:var(--danger);">Danger Zone</div>
+                <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                    Signing out will end your current session.
+                </p>
+                <a href="{% url 'logout' %}" class="btn btn-outline" style="color:var(--danger);">
+                    <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+                    Sign Out
+                </a>
             </div>
         </div>
 
-        <div class="card" style="border-color: #fee2e2;">
-            <div class="section-title" style="color: var(--danger);">Danger Zone</div>
-            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem;">Deleting your account will permanently remove all your notes and data. This action cannot be undone.</p>
-            <button class="btn btn-outline" style="color: var(--danger); border-color: #fee2e2; background: #fff1f2;">Delete Account</button>
+        <!-- ────────────── APPEARANCE ────────────── -->
+        <div id="tab-appearance" class="settings-panel" style="display:none;">
+            <div class="card">
+                <div class="section-title">Theme</div>
+                <form method="POST" action="{% url 'settings' %}#appearance">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="appearance">
+
+                    <div class="theme-options" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                        <!-- Light -->
+                        <label class="theme-card {% if not settings.dark_mode %}selected{% endif %}"
+                               style="cursor:pointer;border:2px solid {% if not settings.dark_mode %}var(--primary){% else %}var(--border){% endif %};border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s;">
+                            <input type="radio" name="dark_mode_choice" value="light"
+                                   {% if not settings.dark_mode %}checked{% endif %}
+                                   style="display:none;" onchange="selectTheme('light')">
+                            <div style="background:#f8fafc;padding:1rem;border-bottom:1px solid #e2e8f0;">
+                                <div style="height:8px;width:60%;background:#7c3aed;border-radius:4px;margin-bottom:6px;"></div>
+                                <div style="height:6px;width:80%;background:#e2e8f0;border-radius:3px;margin-bottom:4px;"></div>
+                                <div style="height:6px;width:50%;background:#e2e8f0;border-radius:3px;"></div>
+                            </div>
+                            <div style="padding:0.75rem;background:#fff;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;font-weight:600;color:#1e293b;">
+                                <i data-lucide="sun" style="width:16px;height:16px;color:#d97706;"></i> Light
+                            </div>
+                        </label>
+                        <!-- Dark -->
+                        <label class="theme-card {% if settings.dark_mode %}selected{% endif %}"
+                               style="cursor:pointer;border:2px solid {% if settings.dark_mode %}var(--primary){% else %}var(--border){% endif %};border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s;">
+                            <input type="radio" name="dark_mode_choice" value="dark"
+                                   {% if settings.dark_mode %}checked{% endif %}
+                                   style="display:none;" onchange="selectTheme('dark')">
+                            <div style="background:#0f172a;padding:1rem;border-bottom:1px solid #1e293b;">
+                                <div style="height:8px;width:60%;background:#7c3aed;border-radius:4px;margin-bottom:6px;"></div>
+                                <div style="height:6px;width:80%;background:#1e293b;border-radius:3px;margin-bottom:4px;"></div>
+                                <div style="height:6px;width:50%;background:#1e293b;border-radius:3px;"></div>
+                            </div>
+                            <div style="padding:0.75rem;background:#0f172a;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;font-weight:600;color:#f1f5f9;">
+                                <i data-lucide="moon" style="width:16px;height:16px;color:#818cf8;"></i> Dark
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- hidden checkbox driven by JS -->
+                    <input type="checkbox" name="dark_mode" id="dark_mode_hidden"
+                           {% if settings.dark_mode %}checked{% endif %} style="display:none;">
+
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="save" style="width:16px;height:16px;"></i>
+                        Save Appearance
+                    </button>
+                </form>
+            </div>
         </div>
 
-        <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
-            <a href="{% url 'logout' %}" class="btn btn-outline" style="color: var(--danger);">
-                <i data-lucide="log-out"></i>
-                Sign Out
-            </a>
+        <!-- ────────────── EDITOR ────────────── -->
+        <div id="tab-editor" class="settings-panel" style="display:none;">
+            <div class="card">
+                <div class="section-title">Editor Mode</div>
+                <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.5rem;">
+                    Choose how the note editor opens by default.
+                </p>
+                <form method="POST" action="{% url 'settings' %}#editor">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="editor">
+
+                    <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">
+
+                        <label class="editor-option" style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border:2px solid {% if settings.editor_mode == 'split' %}var(--primary){% else %}var(--border){% endif %};border-radius:var(--radius);cursor:pointer;transition:border-color 0.2s;">
+                            <input type="radio" name="editor_mode" value="split" {% if settings.editor_mode == 'split' %}checked{% endif %}
+                                   style="accent-color:var(--primary);width:18px;height:18px;">
+                            <div>
+                                <div style="font-weight:600;margin-bottom:0.2rem;">
+                                    <i data-lucide="columns" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i>
+                                    Split View
+                                </div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Editor on the left, live preview on the right.</div>
+                            </div>
+                        </label>
+
+                        <label class="editor-option" style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border:2px solid {% if settings.editor_mode == 'preview' %}var(--primary){% else %}var(--border){% endif %};border-radius:var(--radius);cursor:pointer;transition:border-color 0.2s;">
+                            <input type="radio" name="editor_mode" value="preview" {% if settings.editor_mode == 'preview' %}checked{% endif %}
+                                   style="accent-color:var(--primary);width:18px;height:18px;">
+                            <div>
+                                <div style="font-weight:600;margin-bottom:0.2rem;">
+                                    <i data-lucide="eye" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i>
+                                    Preview Only
+                                </div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Rendered markdown view, click to edit.</div>
+                            </div>
+                        </label>
+
+                        <label class="editor-option" style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border:2px solid {% if settings.editor_mode == 'edit' %}var(--primary){% else %}var(--border){% endif %};border-radius:var(--radius);cursor:pointer;transition:border-color 0.2s;">
+                            <input type="radio" name="editor_mode" value="edit" {% if settings.editor_mode == 'edit' %}checked{% endif %}
+                                   style="accent-color:var(--primary);width:18px;height:18px;">
+                            <div>
+                                <div style="font-weight:600;margin-bottom:0.2rem;">
+                                    <i data-lucide="file-text" style="width:15px;height:15px;vertical-align:middle;margin-right:4px;"></i>
+                                    Edit Only
+                                </div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Plain markdown textarea, no live preview.</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="save" style="width:16px;height:16px;"></i>
+                        Save Editor Preference
+                    </button>
+                </form>
+            </div>
         </div>
-    </div>
+
+        <!-- ────────────── FILES & STORAGE ────────────── -->
+        <div id="tab-storage" class="settings-panel" style="display:none;">
+            <div class="card">
+                <div class="section-title">Storage Overview</div>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.5rem;">
+                    <div class="stat-card card" style="text-align:center;">
+                        <div style="font-size:2rem;font-weight:700;color:var(--primary);">{{ notes_count }}</div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">Active Notes</div>
+                    </div>
+                    <div class="stat-card card" style="text-align:center;">
+                        <div style="font-size:2rem;font-weight:700;color:#d97706;">{{ folders_count }}</div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">Folders</div>
+                    </div>
+                    <div class="stat-card card" style="text-align:center;">
+                        <div style="font-size:2rem;font-weight:700;color:#22c55e;">{{ total_words }}</div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">Total Words</div>
+                    </div>
+                    <div class="stat-card card" style="text-align:center;">
+                        <div style="font-size:2rem;font-weight:700;color:var(--danger);">{{ trashed_count }}</div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">In Trash</div>
+                    </div>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-muted);">
+                    All notes are stored securely in the local database.
+                </p>
+            </div>
+        </div>
+
+        <!-- ────────────── BACKUP ────────────── -->
+        <div id="tab-backup" class="settings-panel" style="display:none;">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="section-title">Export Notes</div>
+                <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.5rem;">
+                    Download all your notes as a <strong>ZIP</strong> archive. The backup includes all your notes as individual <strong>.md</strong> files.
+                </p>
+                <a href="{% url 'export_notes' %}" class="btn btn-primary">
+                    <i data-lucide="download" style="width:16px;height:16px;"></i>
+                    Download Backup (ZIP)
+                </a>
+            </div>
+
+            <div class="card" style="border-color:#fee2e2;">
+                <div class="section-title" style="color:var(--danger);">Clear Trash</div>
+                <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                    Permanently delete all notes currently in trash. This cannot be undone.
+                </p>
+                <a href="{% url 'empty_trash' %}" class="btn btn-outline"
+                   style="color:var(--danger);"
+                   onclick="return confirm('Permanently delete all trashed notes?');">
+                    <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+                    Empty Trash
+                </a>
+            </div>
+        </div>
+
+        <!-- ────────────── ABOUT ────────────── -->
+        <div id="tab-about" class="settings-panel" style="display:none;">
+            <div class="card">
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+                    <div style="width:52px;height:52px;background:var(--primary);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;color:#fff;">K</div>
+                    <div>
+                        <div style="font-size:1.25rem;font-weight:700;">Kilobyte Note Book</div>
+                        <div style="font-size:0.85rem;color:var(--text-muted);">Version 1.0.0</div>
+                    </div>
+                </div>
+
+                <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.7;margin-bottom:1.5rem;">
+                    A clean, fast markdown notes app. Write in Markdown, organise with folders,
+                    and keep everything in sync — all in your browser.
+                </p>
+
+                <div style="display:grid;gap:0.75rem;">
+                    <div style="display:flex;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border);font-size:0.875rem;">
+                        <span style="color:var(--text-muted);">Framework</span><span style="font-weight:600;">Django 5</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border);font-size:0.875rem;">
+                        <span style="color:var(--text-muted);">Markdown</span><span style="font-weight:600;">marked.js</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border);font-size:0.875rem;">
+                        <span style="color:var(--text-muted);">Icons</span><span style="font-weight:600;">Lucide</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:0.75rem 0;font-size:0.875rem;">
+                        <span style="color:var(--text-muted);">Fonts</span><span style="font-weight:600;">Inter · Outfit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /panels -->
 </div>
+
+<style>
+.settings-tab { font-size: 0.9rem; }
+.settings-tab.active { background-color: var(--primary-light); color: var(--primary); }
+.settings-panel { animation: fadeIn 0.25s ease; }
+.editor-option:hover { border-color: var(--primary) !important; }
+</style>
+
+<script>
+// ── Tab switching ──
+document.querySelectorAll('.settings-tab').forEach(function(tab) {
+    tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = this.dataset.tab;
+
+        // toggle sidebar active
+        document.querySelectorAll('.settings-tab').forEach(function(t) { t.classList.remove('active'); });
+        this.classList.add('active');
+
+        // toggle panels
+        document.querySelectorAll('.settings-panel').forEach(function(p) { p.style.display = 'none'; });
+        document.getElementById('tab-' + target).style.display = 'block';
+
+        lucide.createIcons();
+    });
+});
+
+// ── Appearance: sync hidden checkbox with radio choice ──
+function selectTheme(val) {
+    var chk = document.getElementById('dark_mode_hidden');
+    var isDark = (val === 'dark');
+    chk.checked = isDark;
+    
+    // Instantly apply the theme visually
+    if (isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    
+    // Highlight the selected card
+    document.querySelectorAll('.theme-card').forEach(function(c) {
+        var radio = c.querySelector('input[type=radio]');
+        var isThis = (radio && radio.value === val);
+        c.style.borderColor = isThis ? 'var(--primary)' : 'var(--border)';
+    });
+    
+    // Auto-submit the form so the user doesn't have to click save
+    chk.closest('form').submit();
+}
+
+// ── Editor: highlight selected option border ──
+document.querySelectorAll('.editor-option input[type=radio]').forEach(function(r) {
+    r.addEventListener('change', function() {
+        document.querySelectorAll('.editor-option').forEach(function(o) {
+            o.style.borderColor = 'var(--border)';
+        });
+        this.closest('.editor-option').style.borderColor = 'var(--primary)';
+    });
+});
+
+// ── Re-open the right tab after a form submission ──
+var hash = window.location.hash;
+if (hash) {
+    var btn = document.querySelector('[data-tab="' + hash.slice(1) + '"]');
+    if (btn) btn.click();
+}
+</script>
 {% endblock %}

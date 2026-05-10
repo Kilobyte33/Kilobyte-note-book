@@ -4,47 +4,40 @@
 {% block title %}Recent Notes | Kilobyte Note Book{% endblock %}
 
 {% block content %}
-<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+<div class="dashboard-header animate-fade-in" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h2 class="greeting">Recent Notes</h2>
+        <h2 class="greeting">Recent Notes 🕐</h2>
         <p class="sub-greeting">Notes updated in the last 7 days.</p>
     </div>
 </div>
 
-
-<div class="notes-container">
-
-    {% if notes %}
-        <div class="notes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
-            
-            {% for note in notes %}
-                <div class="note-card" style="padding: 15px; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    
-                    <h3>{{ note.title }}</h3>
-                    
-                    <p>
-                        {{ note.content|truncatewords:20 }}
-                    </p>
-                    
-                    <small style="color: gray;">
-                        Last updated: {{ note.updated_at|date:"M d, Y H:i" }}
-                    </small>
-
-                    <br><br>
-
-                    <a href="{% url 'note_view' note.id %}" class="btn" style="text-decoration: none; color: blue;">
-                        View Note
+<div class="section-grid animate-fade-in" style="animation-delay: 0.1s; grid-template-columns: 1fr;">
+    <div class="card" style="padding: 0;">
+        {% for note in notes %}
+        <a href="{% url 'note_view' note.id %}" style="text-decoration: none; color: inherit; display: block;">
+            <div class="note-list-item" style="padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="note-info">
+                    <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem;">{{ note.title }}</h4>
+                    <div class="note-meta">
+                        Updated {{ note.updated_at|timesince }} ago &bull; {{ note.content|wordcount }} words
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                    <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.5rem;" onclick="event.stopPropagation();">
+                        <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+                    </a>
+                    <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);" onclick="event.stopPropagation();">
+                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </a>
                 </div>
-            {% endfor %}
-
+            </div>
+        </a>
+        {% empty %}
+        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+            <i data-lucide="clock" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <p>No notes updated in the last 7 days.</p>
         </div>
-    {% else %}
-        <!-- Empty State -->
-        <div style="text-align: center; margin-top: 50px;">
-            <p style="font-size: 18px; color: gray;">No recent notes found.</p>
-        </div>
-    {% endif %}
-
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}
