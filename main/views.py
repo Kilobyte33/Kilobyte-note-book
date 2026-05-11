@@ -14,7 +14,14 @@ import json
 import zipfile
 import io
 import re
-from django.http import HttpResponse
+import os
+from django.http import HttpResponse, JsonResponse
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+load_dotenv()
+# Configure Gemini API
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @login_required(login_url='/login/')
 def dashboard(request):
@@ -316,3 +323,178 @@ def recent_notes(request):
     return render(request, 'main/recent.html', {
         'notes': recent_notes
     })
+
+
+@login_required(login_url='/login/')
+def chatbot(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_message = data.get('message', '').strip()
+        except (json.JSONDecodeError, AttributeError):
+            user_message = request.POST.get('message', '').strip()
+
+        uploaded_file = request.FILES.get('file')
+
+        if not user_message and not uploaded_file:
+            return JsonResponse({'reply': "Please type a message or select a file first! 😊"})
+
+        reply = get_bot_reply(request.user, user_message, uploaded_file)
+        return JsonResponse({'reply': reply})
+
+    return render(request, 'main/chatbot.html')
+
+
+def get_bot_reply(user, message, uploaded_file=None):
+    """Rule-based chatbot that replies based on keywords."""
+    msg = message.lower().strip()
+    username = user.username
+
+    # ── Greetings ──────────────────────────────────────────────
+    greetings = ['hello', 'hi', 'hey', 'howdy', 'sup', 'what\'s up', 'greetings', 'good morning', 'good afternoon', 'good evening']
+    if any(g in msg for g in greetings):
+        return f"Hey {username}! 👋 Great to see you. How can I help you today?"
+
+    # ── How are you ────────────────────────────────────────────
+    if any(p in msg for p in ['how are you', 'how do you do', 'how\'s it going', 'you okay', 'are you okay']):
+        return "I'm doing great, thanks for asking! 😄 I'm here and ready to help you with anything."
+
+    # ── Name ──────────────────────────────────────────────────
+    if any(p in msg for p in ['your name', 'who are you', 'what are you']):
+        return "I'm **Kibo** 🤖 — your personal assistant inside Kilobyte Note Book! Ask me anything."
+
+    # ── Notes ─────────────────────────────────────────────────
+    if any(p in msg for p in ['how many notes', 'note count', 'my notes']):
+        from main.models import Note
+        count = Note.objects.filter(user=user, is_trashed=False).count()
+        return f"You currently have **{count} note{'s' if count != 1 else ''}** 📝. Want to create a new one?"
+
+    if any(p in msg for p in ['create note', 'new note', 'add note', 'make note', 'write note']):
+        return "To create a note, click **All Notes** in the sidebar, then scroll down to the 'Create New Note' form. ✏️ You can also add notes inside folders!"
+
+    if any(p in msg for p in ['delete note', 'remove note', 'trash note']):
+        return "To delete a note, open it and click the 🗑️ trash icon. Deleted notes go to **Trash** and can be restored anytime."
+
+    if any(p in msg for p in ['favourite', 'favorite', 'starred']):
+        return "You can mark any note as a favourite ⭐ by clicking the star icon when viewing a note."
+
+    # ── Folders ───────────────────────────────────────────────
+    if any(p in msg for p in ['how many folder', 'folder count', 'my folder']):
+        from main.models import Folder
+        count = Folder.objects.filter(user=user).count()
+        return f"You have **{count} folder{'s' if count != 1 else ''}** 📁 set up."
+
+    if any(p in msg for p in ['create folder', 'new folder', 'add folder', 'make folder']):
+        return "Go to **Folders** in the sidebar and click **New Folder** to create one. You can then add notes directly inside it! 📁"
+
+    # ── Markdown ───────────────────────────────────────────────
+    if any(p in msg for p in ['markdown', 'formatting', 'bold', 'italic', 'syntax']):
+        return ("Here's a quick Markdown cheatsheet 📋:\n"
+                "- **Bold**: `**text**`\n"
+                "- *Italic*: `*text*`\n"
+                "- Heading: `# Heading`\n"
+                "- List: `- item`\n"
+                "- Code: `` `code` ``\n"
+                "Check out **Markdown Help** in your settings for the full guide!")
+
+    # ── Settings ──────────────────────────────────────────────
+    if any(p in msg for p in ['dark mode', 'theme', 'appearance', 'dark theme', 'light mode']):
+        return "You can toggle **Dark Mode** in ⚙️ Settings → Appearance. Your preference is saved automatically!"
+
+    if any(p in msg for p in ['password', 'change password', 'update password', 'security']):
+        return "You can change your password in ⚙️ **Settings → Security**. Make sure it's at least 6 characters long."
+
+    if any(p in msg for p in ['export', 'backup', 'download notes']):
+        return "You can export all your notes as a ZIP of `.md` files from ⚙️ **Settings → Backup & Data**. 💾"
+
+    if any(p in msg for p in ['setting', 'preferences', 'configure']):
+        return "Open ⚙️ **Settings** from the sidebar to control dark mode, editor layout, password, and backups."
+
+    # ── Editor ────────────────────────────────────────────────
+    if any(p in msg for p in ['editor', 'split view', 'preview', 'edit mode']):
+        return "The editor has three modes: **Split** (write + preview side by side), **Edit only**, and **Preview only**. Change it in ⚙️ Settings → Editor."
+
+    # ── Trash ─────────────────────────────────────────────────
+    if any(p in msg for p in ['trash', 'deleted', 'restore', 'recycle']):
+        return "Deleted notes live in the **Trash** 🗑️ (sidebar). You can restore or permanently delete them from there."
+
+    # ── Recent ────────────────────────────────────────────────
+    if any(p in msg for p in ['recent', 'last edited', 'latest note']):
+        return "The **Recent** section (sidebar) shows notes updated in the last 7 days. Great for picking up where you left off! ⏱️"
+
+    # ── Help ──────────────────────────────────────────────────
+    if any(p in msg for p in ['help', 'what can you do', 'commands', 'guide']):
+        return ("Here's what I can help you with 🤖:\n"
+                "- 📝 Notes — creating, deleting, favouriting\n"
+                "- 📁 Folders — creating and managing\n"
+                "- ✏️ Markdown formatting tips\n"
+                "- ⚙️ Settings — dark mode, editor, password, export\n"
+                "- 🗑️ Trash & restore\n"
+                "- ⏱️ Recent notes\n"
+                "Just ask me anything!")
+
+    # ── Thank you ─────────────────────────────────────────────
+    if any(p in msg for p in ['thank', 'thanks', 'cheers', 'appreciate']):
+        return f"You're very welcome, {username}! 😊 Let me know if there's anything else I can do for you."
+
+    # ── Bye ───────────────────────────────────────────────────
+    if any(p in msg for p in ['bye', 'goodbye', 'see you', 'cya', 'farewell']):
+        return f"Goodbye, {username}! 👋 Come back anytime. Happy note-taking! 📝"
+
+    # ── Time / date ───────────────────────────────────────────
+    if any(p in msg for p in ['time', 'date', 'today', 'day']):
+        from django.utils import timezone as tz
+        now = tz.localtime(tz.now())
+        return f"It's currently **{now.strftime('%A, %B %d, %Y')}** at **{now.strftime('%H:%M')}** 🕐"
+
+    # ── Who made you ──────────────────────────────────────────
+    if any(p in msg for p in ['who made you', 'who built you', 'who created you', 'developer', 'creator']):
+        return f"I was built into **Kilobyte Note Book** to help users like you navigate and make the most of the app! 🚀"
+
+    # ── Fallback ──────────────────────────────────────────────
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = f"You are Kibo, an educational tutor and assistant for Kilobyte Note Book. Answer the following question in a helpful and educational manner. Be concise but informative: {message}"
+            
+            contents = [prompt]
+            if uploaded_file:
+                if uploaded_file.content_type.startswith('image/'):
+                    from PIL import Image
+                    img = Image.open(uploaded_file)
+                    contents.append(img)
+                else:
+                    file_text = uploaded_file.read().decode('utf-8', errors='ignore')
+                    contents.append(f"\n\n[Attached File Content: {uploaded_file.name}]\n{file_text}")
+            
+            response = model.generate_content(contents)
+            return response.text
+        except Exception as e:
+            return f"I tried to ask my AI brain, but I encountered an error: {str(e)}"
+
+    if uploaded_file:
+        return f"I received your file **{uploaded_file.name}**, but I need a Gemini API key configured in `.env` to analyze attachments! 😅"
+
+    # Free fallback using Wikipedia
+    try:
+        import wikipedia
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
+        
+        search_results = wikipedia.search(message)
+        if search_results:
+            page_title = search_results[0]
+            try:
+                summary = wikipedia.summary(page_title, sentences=3, auto_suggest=False)
+                return f"Here is what I found on Wikipedia for **{page_title}**:\n\n{summary}\n\n*(Tip: Add a Gemini API key to .env for smarter, conversational AI!)*"
+            except wikipedia.exceptions.DisambiguationError as e:
+                if e.options:
+                    summary = wikipedia.summary(e.options[0], sentences=3, auto_suggest=False)
+                    return f"Here is what I found on Wikipedia for **{e.options[0]}**:\n\n{summary}\n\n*(Tip: Add a Gemini API key to .env for smarter, conversational AI!)*"
+    except Exception:
+        pass
+
+    return (f"Hmm, I'm not sure how to answer that 🤔. "
+            f"You asked: *\"{message}\"*\n\n"
+            f"Try asking me about notes, folders, markdown, settings, or type **help** to see what I can do! (Note: To enable general education questions, please configure a Gemini API Key in the .env file).")

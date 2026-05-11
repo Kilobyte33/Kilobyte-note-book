@@ -36,6 +36,10 @@
                         <i data-lucide="clock"></i>
                         Recent
                     </a>
+                    <a href="{% url 'chatbot' %}" class="nav-item {% if request.resolver_match.url_name == 'chatbot' %}active{% endif %}">
+                        <i data-lucide="bot"></i>
+                        Kibo Chat
+                    </a>
                     <a href="{% url 'trash' %}" class="nav-item {% if request.resolver_match.url_name == 'trash' %}active{% endif %}">
                         <i data-lucide="trash-2"></i>
                         Trash

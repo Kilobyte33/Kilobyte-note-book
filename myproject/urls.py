@@ -44,5 +44,5 @@ urlpatterns = [
     path('split-editor/<int:id>/', views.split_editor, name='split_editor'),
     path('recent/', views.recent_notes, name='recent_notes'),
     path('trash/empty/', views.empty_trash, name='empty_trash'),
-    
+    path('chatbot/', views.chatbot, name='chatbot'),
 ]
