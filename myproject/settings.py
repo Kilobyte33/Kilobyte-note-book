@@ -35,9 +35,14 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").strip().lower() in ("1", "true", "yes", "on")
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
-if DEBUG and not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["kilobyte-note-book.onrender.com"]
 
 if not DEBUG and SECRET_KEY == "dev-insecure-change-me":
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY in environment for production.")
