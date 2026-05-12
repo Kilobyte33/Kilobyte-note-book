@@ -18,12 +18,21 @@ import re
 import os
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
-from dotenv import load_dotenv
-import google.generativeai as genai
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover
+    load_dotenv = None
 
-load_dotenv()
-# Configure Gemini API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+try:
+    import google.generativeai as genai
+except Exception:  # pragma: no cover
+    genai = None
+
+if load_dotenv:
+    load_dotenv()
+
+if genai:
+    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @login_required(login_url='/login/')
 def dashboard(request):
@@ -417,7 +426,7 @@ def get_bot_reply(user, message, uploaded_file=None):
 
     # ── Gemini AI with Persistent Memory ──────────────────────────────────────
     api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
+    if api_key and genai:
         try:
             # Comprehensive System Instructions: UNSTOPPABLE VERSION
             system_instructions = (
