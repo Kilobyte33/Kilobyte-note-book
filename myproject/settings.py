@@ -142,11 +142,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
+# Render Proxy Support
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'main', 'static'),
+]
+
+STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 
 # Authentication Settings
 LOGIN_URL = 'login'
