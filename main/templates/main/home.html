@@ -34,7 +34,12 @@
             </div>
             <div style="display: flex; gap: 0.5rem;">
                 <a href="{% url 'edit_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem;"><i data-lucide="edit-3" style="width: 16px; height: 16px;"></i></a>
-                <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i></a>
+                <form method="POST" action="{% url 'delete_note' note.id %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);" onclick="return confirm('Move this note to trash?')">
+                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                    </button>
+                </form>
             </div>
         </div>
         {% empty %}

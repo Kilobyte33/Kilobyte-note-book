@@ -46,9 +46,12 @@
                     <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.4rem;" onclick="event.stopPropagation();">
                         <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                     </a>
-                    <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.4rem; color: var(--danger);" onclick="event.stopPropagation();">
-                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-                    </a>
+                    <form method="POST" action="{% url 'delete_note' note.id %}" style="margin: 0;" onclick="event.stopPropagation();">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline" style="padding: 0.4rem; color: var(--danger);" onclick="event.stopPropagation(); return confirm('Move this note to trash?')">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </a>

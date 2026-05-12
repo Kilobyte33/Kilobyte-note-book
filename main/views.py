@@ -3,12 +3,13 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import models
 from django.db.models import Sum
-from main.models import Note, Folder, UserSettings
+from main.models import Note, Folder, UserSettings, ChatMessage
 from .forms import NoteForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.utils import timezone
 from datetime import timedelta
+from main.models import ChatMessage # Keep this for history loading
 from django.shortcuts import get_object_or_404, redirect
 import json
 import zipfile
@@ -16,6 +17,7 @@ import io
 import re
 import os
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -260,35 +262,40 @@ def export_notes(request):
 
 @login_required(login_url='/login/')
 def trash(request):
-    trashed_notes = Note.objects.filter(is_trashed=True).order_by('-deleted_at')
+    trashed_notes = Note.objects.filter(user=request.user, is_trashed=True).order_by('-deleted_at')
     return render(request, 'main/trash.html', {
         'trashed_notes': trashed_notes
     })
 
 @login_required(login_url='/login/')
+@require_POST
 def restore_note(request, id):
-    note = get_object_or_404(Note, id=id, is_trashed=True)
+    note = get_object_or_404(Note, id=id, user=request.user, is_trashed=True)
     note.is_trashed = False
     note.trashed_at = None
     note.save()
     return redirect('trash')
 
 @login_required(login_url='/login/')
-
+@require_POST
 def delete_note(request, id):
-    note = get_object_or_404(Note, id=id)
+    note = get_object_or_404(Note, id=id, user=request.user)
     note.is_trashed = True
     note.trashed_at = timezone.now()
     note.save()
     return redirect('trash')
 
+@login_required(login_url='/login/')
+@require_POST
 def delete_forever(request, id):
-    note = get_object_or_404(Note, id=id, is_trashed =True)
+    note = get_object_or_404(Note, id=id, user=request.user, is_trashed=True)
     note.delete()  
     return redirect('trash')
 
+@login_required(login_url='/login/')
+@require_POST
 def empty_trash(request):
-    Note.objects.filter(is_trashed =True).delete()
+    Note.objects.filter(user=request.user, is_trashed=True).delete()
     return redirect('trash')
 
 @login_required(login_url='/login/')
@@ -317,6 +324,7 @@ def split_editor(request, id):
 def recent_notes(request):
     last_7_days = timezone.now() - timedelta(days=7)
     recent_notes = Note.objects.filter(
+        user=request.user,
         updated_at__gte=last_7_days
     ).order_by('-updated_at')
 
@@ -324,177 +332,171 @@ def recent_notes(request):
         'notes': recent_notes
     })
 
-
 @login_required(login_url='/login/')
 def chatbot(request):
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user_message = data.get('message', '').strip()
-        except (json.JSONDecodeError, AttributeError):
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                user_message = data.get('message', '').strip()
+            except (json.JSONDecodeError, AttributeError):
+                user_message = ''
+        else:
             user_message = request.POST.get('message', '').strip()
 
         uploaded_file = request.FILES.get('file')
+        if uploaded_file and uploaded_file.size and uploaded_file.size > 5 * 1024 * 1024:
+            return JsonResponse({'reply': "That file is too large (max 5MB). Please upload a smaller file."}, status=400)
 
         if not user_message and not uploaded_file:
             return JsonResponse({'reply': "Please type a message or select a file first! 😊"})
 
+        # Save user message
+        if user_message:
+            ChatMessage.objects.create(user=request.user, role='user', message=user_message, has_attachment=bool(uploaded_file))
+
         reply = get_bot_reply(request.user, user_message, uploaded_file)
+        
+        # Save bot reply
+        ChatMessage.objects.create(user=request.user, role='bot', message=reply)
+        
         return JsonResponse({'reply': reply})
 
-    return render(request, 'main/chatbot.html')
+    # Load history for GET request
+    history = ChatMessage.objects.filter(user=request.user).order_by('created_at')
+    return render(request, 'main/chatbot.html', {'chat_history': history})
 
+@login_required(login_url='/login/')
+def clear_chat(request):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+    ChatMessage.objects.filter(user=request.user).delete()
+    return JsonResponse({'status': 'success'})
+
+def extract_text_from_file(uploaded_file):
+    """Robustly extracts text from various file formats including PDF and DOCX."""
+    content_type = uploaded_file.content_type
+    
+    if content_type == 'application/pdf':
+        try:
+            import pdfplumber
+            uploaded_file.seek(0)
+            text = ""
+            with pdfplumber.open(uploaded_file) as pdf:
+                for page in pdf.pages:
+                    text += (page.extract_text() or "") + "\n"
+            
+            if not text.strip():
+                import PyPDF2
+                uploaded_file.seek(0)
+                reader = PyPDF2.PdfReader(uploaded_file)
+                for page in reader.pages:
+                    text += (page.extract_text() or "") + "\n"
+            
+            return text if text.strip() else "[The PDF appears to be image-based. I will attempt to analyze it as an image if possible.]"
+        except Exception as e:
+            return f"[PDF Extraction Error: {str(e)}]"
+            
+    elif 'officedocument.wordprocessingml.document' in content_type or 'msword' in content_type:
+        try:
+            import docx
+            uploaded_file.seek(0)
+            doc = docx.Document(uploaded_file)
+            return "\n".join([para.text for para in doc.paragraphs])
+        except Exception as e:
+            return f"[DOCX Extraction Error: {str(e)}]"
+            
+    try:
+        uploaded_file.seek(0)
+        return uploaded_file.read().decode('utf-8', errors='ignore')
+    except:
+        return "[Unsupported binary file format]"
 
 def get_bot_reply(user, message, uploaded_file=None):
-    """Rule-based chatbot that replies based on keywords."""
-    msg = message.lower().strip()
+    """Advanced AI chatbot with document understanding and memory."""
+    msg = message.lower().strip() if message else ""
     username = user.username
 
-    # ── Greetings ──────────────────────────────────────────────
-    greetings = ['hello', 'hi', 'hey', 'howdy', 'sup', 'what\'s up', 'greetings', 'good morning', 'good afternoon', 'good evening']
-    if any(g in msg for g in greetings):
-        return f"Hey {username}! 👋 Great to see you. How can I help you today?"
-
-    # ── How are you ────────────────────────────────────────────
-    if any(p in msg for p in ['how are you', 'how do you do', 'how\'s it going', 'you okay', 'are you okay']):
-        return "I'm doing great, thanks for asking! 😄 I'm here and ready to help you with anything."
-
-    # ── Name ──────────────────────────────────────────────────
-    if any(p in msg for p in ['your name', 'who are you', 'what are you']):
-        return "I'm **Kibo** 🤖 — your personal assistant inside Kilobyte Note Book! Ask me anything."
-
-    # ── Notes ─────────────────────────────────────────────────
-    if any(p in msg for p in ['how many notes', 'note count', 'my notes']):
-        from main.models import Note
-        count = Note.objects.filter(user=user, is_trashed=False).count()
-        return f"You currently have **{count} note{'s' if count != 1 else ''}** 📝. Want to create a new one?"
-
-    if any(p in msg for p in ['create note', 'new note', 'add note', 'make note', 'write note']):
-        return "To create a note, click **All Notes** in the sidebar, then scroll down to the 'Create New Note' form. ✏️ You can also add notes inside folders!"
-
-    if any(p in msg for p in ['delete note', 'remove note', 'trash note']):
-        return "To delete a note, open it and click the 🗑️ trash icon. Deleted notes go to **Trash** and can be restored anytime."
-
-    if any(p in msg for p in ['favourite', 'favorite', 'starred']):
-        return "You can mark any note as a favourite ⭐ by clicking the star icon when viewing a note."
-
-    # ── Folders ───────────────────────────────────────────────
-    if any(p in msg for p in ['how many folder', 'folder count', 'my folder']):
-        from main.models import Folder
-        count = Folder.objects.filter(user=user).count()
-        return f"You have **{count} folder{'s' if count != 1 else ''}** 📁 set up."
-
-    if any(p in msg for p in ['create folder', 'new folder', 'add folder', 'make folder']):
-        return "Go to **Folders** in the sidebar and click **New Folder** to create one. You can then add notes directly inside it! 📁"
-
-    # ── Markdown ───────────────────────────────────────────────
-    if any(p in msg for p in ['markdown', 'formatting', 'bold', 'italic', 'syntax']):
-        return ("Here's a quick Markdown cheatsheet 📋:\n"
-                "- **Bold**: `**text**`\n"
-                "- *Italic*: `*text*`\n"
-                "- Heading: `# Heading`\n"
-                "- List: `- item`\n"
-                "- Code: `` `code` ``\n"
-                "Check out **Markdown Help** in your settings for the full guide!")
-
-    # ── Settings ──────────────────────────────────────────────
-    if any(p in msg for p in ['dark mode', 'theme', 'appearance', 'dark theme', 'light mode']):
-        return "You can toggle **Dark Mode** in ⚙️ Settings → Appearance. Your preference is saved automatically!"
-
-    if any(p in msg for p in ['password', 'change password', 'update password', 'security']):
-        return "You can change your password in ⚙️ **Settings → Security**. Make sure it's at least 6 characters long."
-
-    if any(p in msg for p in ['export', 'backup', 'download notes']):
-        return "You can export all your notes as a ZIP of `.md` files from ⚙️ **Settings → Backup & Data**. 💾"
-
-    if any(p in msg for p in ['setting', 'preferences', 'configure']):
-        return "Open ⚙️ **Settings** from the sidebar to control dark mode, editor layout, password, and backups."
-
-    # ── Editor ────────────────────────────────────────────────
-    if any(p in msg for p in ['editor', 'split view', 'preview', 'edit mode']):
-        return "The editor has three modes: **Split** (write + preview side by side), **Edit only**, and **Preview only**. Change it in ⚙️ Settings → Editor."
-
-    # ── Trash ─────────────────────────────────────────────────
-    if any(p in msg for p in ['trash', 'deleted', 'restore', 'recycle']):
-        return "Deleted notes live in the **Trash** 🗑️ (sidebar). You can restore or permanently delete them from there."
-
-    # ── Recent ────────────────────────────────────────────────
-    if any(p in msg for p in ['recent', 'last edited', 'latest note']):
-        return "The **Recent** section (sidebar) shows notes updated in the last 7 days. Great for picking up where you left off! ⏱️"
-
-    # ── Help ──────────────────────────────────────────────────
-    if any(p in msg for p in ['help', 'what can you do', 'commands', 'guide']):
-        return ("Here's what I can help you with 🤖:\n"
-                "- 📝 Notes — creating, deleting, favouriting\n"
-                "- 📁 Folders — creating and managing\n"
-                "- ✏️ Markdown formatting tips\n"
-                "- ⚙️ Settings — dark mode, editor, password, export\n"
-                "- 🗑️ Trash & restore\n"
-                "- ⏱️ Recent notes\n"
-                "Just ask me anything!")
-
-    # ── Thank you ─────────────────────────────────────────────
-    if any(p in msg for p in ['thank', 'thanks', 'cheers', 'appreciate']):
-        return f"You're very welcome, {username}! 😊 Let me know if there's anything else I can do for you."
-
-    # ── Bye ───────────────────────────────────────────────────
-    if any(p in msg for p in ['bye', 'goodbye', 'see you', 'cya', 'farewell']):
-        return f"Goodbye, {username}! 👋 Come back anytime. Happy note-taking! 📝"
-
-    # ── Time / date ───────────────────────────────────────────
-    if any(p in msg for p in ['time', 'date', 'today', 'day']):
-        from django.utils import timezone as tz
-        now = tz.localtime(tz.now())
-        return f"It's currently **{now.strftime('%A, %B %d, %Y')}** at **{now.strftime('%H:%M')}** 🕐"
-
-    # ── Who made you ──────────────────────────────────────────
-    if any(p in msg for p in ['who made you', 'who built you', 'who created you', 'developer', 'creator']):
-        return f"I was built into **Kilobyte Note Book** to help users like you navigate and make the most of the app! 🚀"
-
-    # ── Fallback ──────────────────────────────────────────────
+    # ── Gemini AI with Persistent Memory ──────────────────────────────────────
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"You are Kibo, an educational tutor and assistant for Kilobyte Note Book. Answer the following question in a helpful and educational manner. Be concise but informative: {message}"
+            # Comprehensive System Instructions: UNSTOPPABLE VERSION
+            system_instructions = (
+                "You are Kibo, an advanced AI assistant with persistent conversational memory and expert document understanding, integrated into Kilobyte Note Book.\n\n"
+                "Document Processing Rules:\n"
+                "- Automatically detect and analyze uploaded files (PDF, DOCX, TXT, etc.).\n"
+                "- Use the provided text extraction to understand document content.\n"
+                "- If a document is image-based, use your visual capabilities to read it.\n"
+                "- Never reject a file unless it's completely unreadable.\n\n"
+                "Summarization Behavior:\n"
+                "- Generate clear and accurate summaries including: Short summary, Detailed summary, Key points, Important definitions, Conclusions, and Action items.\n"
+                "- Adapt summary length based on user requests.\n\n"
+                "Analysis Features:\n"
+                "- Answer questions based on uploaded documents with high precision.\n"
+                "- Identify important topics, sections, tables, and structured content.\n"
+                "- Explain technical content in simpler terms if requested.\n\n"
+                "Memory Rules:\n"
+                "- Remember important details from previous conversations and uploaded documents.\n"
+                "- Maintain context across chats so the conversation feels continuous.\n"
+                "- Store and recall useful long-term information (Name, Preferences, Goals, etc.).\n"
+                "- Reference earlier discussions and documents naturally.\n\n"
+                "Core Behavior:\n"
+                "- Be friendly, professional, and conversational.\n"
+                "- Give clear, direct, and organized answers using Markdown.\n"
+                "- Avoid unnecessary repetition and filler words.\n"
+                "- If unsure, clearly state uncertainty.\n\n"
+                "Goal:\n"
+                "Provide the most useful, accurate, and intelligent document-aware response possible in every interaction."
+            )
+
+            model = genai.GenerativeModel(
+                model_name='gemini-2.5-flash',
+                system_instruction=system_instructions
+            )
             
-            contents = [prompt]
+            # Retrieve last 15 messages for context
+            history_objs = ChatMessage.objects.filter(user=user).order_by('-created_at')[:15][::-1]
+            chat_history = []
+            for h in history_objs:
+                chat_history.append({
+                    'role': 'user' if h.role == 'user' else 'model',
+                    'parts': [h.message]
+                })
+
+            chat = model.start_chat(history=chat_history)
+            
+            contents = []
             if uploaded_file:
                 if uploaded_file.content_type.startswith('image/'):
                     from PIL import Image
                     img = Image.open(uploaded_file)
                     contents.append(img)
+                    contents.append(f"[User uploaded an image: {uploaded_file.name}]")
                 else:
-                    file_text = uploaded_file.read().decode('utf-8', errors='ignore')
-                    contents.append(f"\n\n[Attached File Content: {uploaded_file.name}]\n{file_text}")
+                    file_text = extract_text_from_file(uploaded_file)
+                    contents.append(f"\n\n[Uploaded Document Content: {uploaded_file.name}]\n{file_text}")
             
-            response = model.generate_content(contents)
+            if message:
+                contents.append(message)
+            else:
+                contents.append("I have uploaded a document. Please analyze it and provide a summary.")
+
+            response = chat.send_message(contents)
             return response.text
         except Exception as e:
-            return f"I tried to ask my AI brain, but I encountered an error: {str(e)}"
+            return f"I encountered an error while accessing my memory: {str(e)}"
 
-    if uploaded_file:
-        return f"I received your file **{uploaded_file.name}**, but I need a Gemini API key configured in `.env` to analyze attachments! 😅"
+    # ── Fallback (Rule-based) ────────────────────────────────────────────────
+    if any(g in msg for g in ['hello', 'hi', 'hey', 'howdy']):
+        return f"Hey {username}! 👋 I'm currently running in offline mode. How can I help you?"
 
-    # Free fallback using Wikipedia
-    try:
-        import wikipedia
-        import warnings
-        warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
-        
-        search_results = wikipedia.search(message)
-        if search_results:
-            page_title = search_results[0]
-            try:
-                summary = wikipedia.summary(page_title, sentences=3, auto_suggest=False)
-                return f"Here is what I found on Wikipedia for **{page_title}**:\n\n{summary}\n\n*(Tip: Add a Gemini API key to .env for smarter, conversational AI!)*"
-            except wikipedia.exceptions.DisambiguationError as e:
-                if e.options:
-                    summary = wikipedia.summary(e.options[0], sentences=3, auto_suggest=False)
-                    return f"Here is what I found on Wikipedia for **{e.options[0]}**:\n\n{summary}\n\n*(Tip: Add a Gemini API key to .env for smarter, conversational AI!)*"
-    except Exception:
-        pass
+    if any(p in msg for p in ['how many notes', 'note count']):
+        from main.models import Note
+        count = Note.objects.filter(user=user, is_trashed=False).count()
+        return f"You currently have **{count} notes** 📝."
 
-    return (f"Hmm, I'm not sure how to answer that 🤔. "
-            f"You asked: *\"{message}\"*\n\n"
-            f"Try asking me about notes, folders, markdown, settings, or type **help** to see what I can do! (Note: To enable general education questions, please configure a Gemini API Key in the .env file).")
+    if any(p in msg for p in ['help', 'commands']):
+        return "I can help with notes, folders, and markdown. (Tip: Configure a Gemini API Key for full AI power!)"
+
+    return "I'm currently in basic mode. Please configure a Gemini API key in the .env file for full AI features!"

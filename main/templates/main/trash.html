@@ -11,10 +11,13 @@
     </div>
     
     {% if trashed_notes %}
-    <a href="{% url 'empty_trash' %}" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);">
-        <i data-lucide="trash-2"></i>
-        Empty Trash
-    </a>
+    <form method="POST" action="{% url 'empty_trash' %}" style="margin: 0;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="return confirm('Permanently delete all trashed notes?')">
+            <i data-lucide="trash-2"></i>
+            Empty Trash
+        </button>
+    </form>
     {% endif %}
 </div>
 
@@ -33,20 +36,26 @@
 
         <div style="display: flex; gap: 0.5rem;">
             <!-- Restore -->
-            <a href="{% url 'restore_note' note.id %}" 
-        class="btn btn-outline"
-            onclick="return confirm('Restore this note?')"
-            style="padding: 0.5rem; color: var(--success);">
-            <i data-lucide="rotate-ccw"></i>
-            </a>
+            <form method="POST" action="{% url 'restore_note' note.id %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-outline"
+                        onclick="return confirm('Restore this note?')"
+                        style="padding: 0.5rem; color: var(--success);">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+            </form>
 
             
-            <a href="{% url 'delete_forever' note.id %}" 
-        class="btn btn-outline"
-            onclick="return confirm('Delete permanently?')"
-            style="padding: 0.5rem; color: var(--danger);">
-            <i data-lucide="x-circle"></i>
-            </a>
+            <form method="POST" action="{% url 'delete_forever' note.id %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-outline"
+                        onclick="return confirm('Delete permanently?')"
+                        style="padding: 0.5rem; color: var(--danger);">
+                    <i data-lucide="x-circle"></i>
+                </button>
+            </form>
         </div>
     </div>
 

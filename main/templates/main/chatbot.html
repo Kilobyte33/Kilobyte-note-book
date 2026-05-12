@@ -388,11 +388,16 @@
         Online & ready to help
       </div>
     </div>
+    <button id="clear-chat-btn" onclick="clearChat()" title="Clear Conversation" style="margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 0.5rem; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: all 0.2s;">
+      <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+      <span style="font-size: 0.8rem; font-weight: 500;">Clear</span>
+    </button>
   </div>
 
   <!-- Messages -->
   <div class="chat-messages" id="chat-messages">
-    <!-- Welcome message -->
+    {% if not chat_history %}
+    <!-- Welcome message (only shown for new users) -->
     <div class="welcome-card">
       <div class="big-icon">🤖</div>
       <h4>Hey {{ user.username }}, I'm Kibo!</h4>
@@ -410,6 +415,26 @@
         <div class="msg-time">Just now</div>
       </div>
     </div>
+    {% else %}
+      {% for chat in chat_history %}
+      <div class="msg-row {% if chat.role == 'user' %}user-row{% else %}bot-row{% endif %}">
+        <div class="msg-avatar {% if chat.role == 'user' %}user-msg-avatar{% else %}bot-msg-avatar{% endif %}">
+          {{ chat.user.username|first|upper }}
+        </div>
+        <div>
+          <div class="msg-bubble {% if chat.role == 'user' %}user-bubble{% else %}bot-bubble{% endif %}">
+            {{ chat.message|linebreaksbr }}
+            {% if chat.has_attachment %}
+            <div style="margin-top: 0.5rem; font-size: 0.75rem; opacity: 0.8; font-style: italic;">
+              (Attachment sent)
+            </div>
+            {% endif %}
+          </div>
+          <div class="msg-time">{{ chat.created_at|date:"H:i" }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
   </div>
 
   <!-- Suggestion Chips -->
@@ -456,7 +481,13 @@
   const inputEl     = document.getElementById('chat-input');
   const sendBtn     = document.getElementById('send-btn');
   const chipsEl     = document.getElementById('suggestion-chips');
-  const CSRF_TOKEN  = '{{ csrf_token }}';
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+  const CSRF_TOKEN = getCookie('csrftoken');
 
   /* ── Auto-resize textarea ──────────────────────────────── */
   inputEl.addEventListener('input', () => {
@@ -486,7 +517,7 @@
 
   /* ── Render simple markdown to HTML ────────────────────── */
   function renderMarkdown(text) {
-    return text
+    const html = (text || "")
       // Bold **text**
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       // Italic *text*
@@ -499,6 +530,7 @@
       .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
       // Line breaks
       .replace(/\n/g, '<br>');
+    return (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
   }
 
   /* ── Timestamp ──────────────────────────────────────────── */
@@ -540,7 +572,7 @@
   }
 
   /* ── Append a bubble ────────────────────────────────────── */
-  function appendMessage(text, sender, imageUrl=null) {
+  function appendMessage(text, sender, imageUrl=null, fileName=null) {
     const row = document.createElement('div');
     row.className = `msg-row ${sender === 'user' ? 'user-row' : 'bot-row'}`;
 
@@ -554,9 +586,16 @@
     bubble.className = `msg-bubble ${sender === 'user' ? 'user-bubble' : 'bot-bubble'}`;
     
     let htmlContent = renderMarkdown(text);
+    
     if (imageUrl) {
-        htmlContent += `<br><img src="${imageUrl}" class="msg-image">`;
+        htmlContent += `<div style="margin-top: 0.75rem;"><img src="${imageUrl}" class="msg-image" style="border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); display: block; max-height: 300px;"></div>`;
+    } else if (fileName) {
+        htmlContent += `<div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; background: rgba(0,0,0,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);">
+            <i data-lucide="file" style="width: 16px; height: 16px;"></i>
+            <span style="font-size: 0.8rem; font-weight: 500;">${fileName}</span>
+        </div>`;
     }
+    
     bubble.innerHTML = htmlContent;
 
     const timeEl = document.createElement('div');
@@ -610,8 +649,8 @@
     if (!text && !selectedFile) return;
 
     // Render user bubble
-    const userText = text || "Sent a file";
-    appendMessage(userText, 'user', previewUrl);
+    const userText = text || (selectedFile ? `Sent a ${selectedFile.type.startsWith('image/') ? 'photo' : 'file'}` : "");
+    appendMessage(userText, 'user', previewUrl, selectedFile ? selectedFile.name : null);
     
     const fileToSend = selectedFile; // copy ref
     
@@ -667,7 +706,48 @@
     }
   }
 
-  // Focus input on load
-  inputEl.focus();
+  async function clearChat() {
+    if (!confirm("Are you sure you want to clear your conversation history? This cannot be undone.")) return;
+    
+    try {
+        const resp = await fetch('{% url "clear_chat" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            // Clear DOM
+            messagesEl.innerHTML = `
+                <div class="welcome-card">
+                  <div class="big-icon">🤖</div>
+                  <h4>Hey {{ user.username }}, I'm Kibo!</h4>
+                  <p>Your personal assistant for Kilobyte Note Book. Ask me about notes, folders, markdown, settings, or just say hi!</p>
+                </div>
+                <div class="msg-row bot-row" id="initial-greeting">
+                  <div class="msg-avatar bot-msg-avatar">K</div>
+                  <div>
+                    <div class="msg-bubble bot-bubble" id="greeting-bubble">
+                      👋 Hello <strong>{{ user.username }}</strong>! I'm Kibo, your note-taking assistant.
+                      Type <strong>help</strong> to see what I can do, or just ask away!
+                    </div>
+                    <div class="msg-time">Just now</div>
+                  </div>
+                </div>
+            `;
+            chipsEl.style.display = 'flex';
+        }
+    } catch (err) {
+        console.error("Error clearing chat:", err);
+        alert("Failed to clear chat. Please try again.");
+    }
+  }
+
+  // Focus input on load and scroll to bottom
+  window.addEventListener('DOMContentLoaded', () => {
+    inputEl.focus();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
 </script>
 {% endblock %}

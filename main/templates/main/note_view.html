@@ -11,13 +11,22 @@
             Back to Notes
         </a>
         <div style="display: flex; gap: 0.75rem;">
+            <button onclick="downloadPDF()" class="btn btn-outline" style="padding: 0.5rem; display: flex; align-items: center; gap: 0.5rem;" title="Download as PDF">
+                <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+                <span style="font-size: 0.875rem; font-weight: 600;">PDF</span>
+            </button>
             <button class="btn btn-outline" style="padding: 0.5rem;"><i data-lucide="star" style="width: 18px; height: 18px; {% if note.is_favorite %}fill: var(--primary); color: var(--primary);{% endif %}"></i></button>
             <a href="{% url 'split_editor' note.id %}" class="btn btn-outline" style="padding: 0.5rem;"><i data-lucide="edit-3" style="width: 18px; height: 18px;"></i></a>
-            <a href="{% url 'delete_note' note.id %}" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);"><i data-lucide="trash-2" style="width: 18px; height: 18px;"></i></a>
+            <form method="POST" action="{% url 'delete_note' note.id %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline" style="padding: 0.5rem; color: var(--danger);" onclick="return confirm('Move this note to trash?')">
+                    <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                </button>
+            </form>
         </div>
     </div>
 
-    <div class="card" style="padding: 3rem; min-height: 70vh;">
+    <div id="pdf-content" class="card" style="padding: 3rem; min-height: 70vh;">
         <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1.5rem; font-family: 'Outfit', sans-serif;">{{ note.title }}</h1>
         <div class="note-meta" style="margin-bottom: 2.5rem; font-size: 0.875rem;">
             <span>{{ note.updated_at|date:"M d, Y" }}</span> • 
@@ -33,11 +42,26 @@
 
 {% block extra_js %}
 <script>
+    function downloadPDF() {
+        const element = document.getElementById('pdf-content');
+        const opt = {
+            margin:       [15, 15],
+            filename:     '{{ note.title|escapejs }}.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // New Promise-based usage:
+        html2pdf().set(opt).from(element).save();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
         const view = document.getElementById('markdown-view');
         if (view && typeof marked !== 'undefined') {
             const rawContent = view.innerText;
-            view.innerHTML = marked.parse(rawContent);
+            const html = marked.parse(rawContent);
+            view.innerHTML = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
         }
     });
 </script>

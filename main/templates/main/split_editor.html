@@ -17,6 +17,10 @@
             <span style="font-size: 0.75rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
                 <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Saved
             </span>
+            <button onclick="downloadPDF()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; display: flex; align-items: center; gap: 0.4rem;" title="Download Preview as PDF">
+                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                <span style="font-size: 0.75rem; font-weight: 600;">PDF</span>
+            </button>
             <div style="display: flex; background: var(--sidebar-active); border-radius: 8px; padding: 2px;">
                 <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; border: none; background: white; box-shadow: var(--shadow-sm);"><i data-lucide="columns" style="width: 16px; height: 16px;"></i></button>
                 <button class="btn" style="padding: 0.4rem 0.8rem; border: none; background: transparent;"><i data-lucide="eye" style="width: 16px; height: 16px;"></i></button>
@@ -27,8 +31,8 @@
     </div>
 
     <div class="editor-panes" style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; overflow: hidden;">
-        <div class="card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden;">
-            <div style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
+        <div class="card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden; border-color: var(--border);">
+            <div style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--sidebar-active);">
                 <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Markdown Editor</span>
                 <div style="display: flex; gap: 0.5rem;">
                     <i data-lucide="bold" style="width: 16px; height: 16px; cursor: pointer;"></i>
@@ -38,18 +42,18 @@
                     <i data-lucide="list" style="width: 16px; height: 16px; cursor: pointer;"></i>
                 </div>
             </div>
-            <form id="edit-form" method="POST" style="flex: 1; display: flex; flex-direction: column;">
+            <form id="edit-form" method="POST" style="flex: 1; display: flex; flex-direction: column; background: var(--bg-card);">
                 {% csrf_token %}
-                <input type="text" name="title" value="{{ form.title }}" style="border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 1.5rem; font-size: 1.5rem; font-weight: 700; font-family: 'Outfit', sans-serif;" placeholder="Title">
-                <textarea name="content" style="flex: 1; border: none; border-radius: 0; padding: 1.5rem; font-family: 'Fira Code', monospace; font-size: 0.9rem; line-height: 1.6; resize: none;" oninput="updatePreview(this.value)">{{ form.content }}</textarea>
+                <input type="text" name="title" value="{{ form.title }}" style="border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 1.5rem; font-size: 1.5rem; font-weight: 700; font-family: 'Outfit', sans-serif; background: transparent; color: var(--text-main);" placeholder="Title">
+                <textarea name="content" style="flex: 1; border: none; border-radius: 0; padding: 1.5rem; font-family: 'Fira Code', monospace; font-size: 0.9rem; line-height: 1.6; resize: none; background: transparent; color: var(--text-main);" oninput="updatePreview(this.value)">{{ form.content }}</textarea>
             </form>
         </div>
 
-        <div class="card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden;">
-            <div style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); background: #fafafa;">
+        <div class="card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden; border-color: var(--border);">
+            <div style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--sidebar-active);">
                 <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Live Preview</span>
             </div>
-            <div id="preview-pane" style="flex: 1; padding: 2rem; overflow-y: auto; background: white;">
+            <div id="preview-pane" style="flex: 1; padding: 2rem; overflow-y: auto; background: var(--bg-card);">
                 <h1 id="preview-title" style="font-size: 2rem; font-weight: 800; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">{{ form.title }}</h1>
                 <div id="preview-content" style="font-size: 1rem; line-height: 1.6;">
                     {{ form.content|linebreaksbr }}
@@ -60,10 +64,27 @@
 </div>
 
 <script>
+    function downloadPDF() {
+        const element = document.getElementById('preview-pane');
+        const titleInput = document.querySelector('input[name="title"]');
+        const fileName = (titleInput ? titleInput.value : 'Untitled') + '.pdf';
+
+        const opt = {
+            margin:       [15, 15],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save();
+    }
+
     function updatePreview(val) {
         const previewContent = document.getElementById('preview-content');
         if (typeof marked !== 'undefined') {
-            previewContent.innerHTML = marked.parse(val);
+            const html = marked.parse(val);
+            previewContent.innerHTML = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
         } else {
             previewContent.innerText = val;
         }

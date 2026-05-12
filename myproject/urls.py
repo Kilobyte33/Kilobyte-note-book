@@ -25,7 +25,7 @@ urlpatterns = [
     path('register/', views.register_user, name='register'),
     path('home/', views.home, name='home'),
     path('edit/<int:id>/', views.edit_note, name='edit_note'),
-    path('delete_note/<int:id>/', views.delete_note1, name='delete_note'),
+    path('note/delete-forever-confirm/<int:id>/', views.delete_note1, name='delete_note_forever_confirm'),
     path('login/', views.login_user, name='login'),
     path('logout/', views.logout_user, name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -45,4 +45,5 @@ urlpatterns = [
     path('recent/', views.recent_notes, name='recent_notes'),
     path('trash/empty/', views.empty_trash, name='empty_trash'),
     path('chatbot/', views.chatbot, name='chatbot'),
+    path('chatbot/clear/', views.clear_chat, name='clear_chat'),
 ]
