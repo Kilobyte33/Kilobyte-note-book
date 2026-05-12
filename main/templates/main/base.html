@@ -16,10 +16,25 @@
 <body>
     {% if user.is_authenticated and not hide_sidebar %}
     <div class="app-container">
-        <aside class="sidebar">
+        <header class="mobile-topbar">
+            <button type="button" class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
+                <i data-lucide="menu"></i>
+            </button>
+            <a href="{% url 'dashboard' %}" class="mobile-brand" aria-label="Go to dashboard">
+                <span class="logo-icon">K</span>
+                <span class="mobile-brand-text">Kilobyte Note Book</span>
+            </a>
+        </header>
+
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <aside class="sidebar" id="app-sidebar">
             <div class="sidebar-header">
                 <div class="logo-icon">K</div>
                 <h1 class="logo-text">Kilobyte Note Book</h1>
+                <button type="button" class="sidebar-close" id="sidebar-close" aria-label="Close navigation">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
             
             <nav class="sidebar-nav">
@@ -110,6 +125,46 @@
 
     <script>
         lucide.createIcons();
+        (function () {
+            const sidebar = document.getElementById('app-sidebar');
+            const toggle = document.getElementById('mobile-menu-toggle');
+            const close = document.getElementById('sidebar-close');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (!sidebar || !toggle || !overlay) return;
+
+            function setMenuOpen(isOpen) {
+                sidebar.classList.toggle('open', isOpen);
+                document.body.classList.toggle('nav-open', isOpen);
+                toggle.setAttribute('aria-expanded', String(isOpen));
+            }
+
+            toggle.addEventListener('click', function () {
+                setMenuOpen(!sidebar.classList.contains('open'));
+            });
+
+            if (close) {
+                close.addEventListener('click', function () {
+                    setMenuOpen(false);
+                });
+            }
+
+            overlay.addEventListener('click', function () {
+                setMenuOpen(false);
+            });
+
+            sidebar.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    setMenuOpen(false);
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    setMenuOpen(false);
+                }
+            });
+        })();
         if (typeof marked !== 'undefined') {
             marked.setOptions({
                 breaks: true,
