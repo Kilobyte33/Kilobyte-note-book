@@ -30,7 +30,7 @@ if load_dotenv:
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", os.environ.get("SECRET_KEY", "dev-insecure-change-me"))
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").strip().lower() in ("1", "true", "yes", "on")
@@ -171,6 +171,8 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+WHITENOISE_MANIFEST_STRICT = False
 
 # Authentication Settings
 LOGIN_URL = 'login'
