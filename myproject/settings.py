@@ -33,7 +33,7 @@ if load_dotenv:
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", os.environ.get("SECRET_KEY", "dev-insecure-change-me"))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").strip().lower() in ("1", "true", "yes", "on")
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").strip().lower() in ("1", "true", "yes", "on")
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -48,6 +48,15 @@ if not ALLOWED_HOSTS:
         "localhost",
         "127.0.0.1",
     ]
+
+# Add Render's external hostname if it exists
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{h}" for h in ALLOWED_HOSTS if not h.startswith(("localhost", "127.0.0.1"))
+]
 
 if not DEBUG and SECRET_KEY == "dev-insecure-change-me":
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY or SECRET_KEY in environment for production.")
@@ -153,7 +162,14 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'main', 'static'),
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Authentication Settings
 LOGIN_URL = 'login'
