@@ -31,14 +31,12 @@ def dashboard(request):
     folders_count = Folder.objects.filter(user=request.user).count()
     favorites_count = Note.objects.filter(user=request.user, is_favorite=True, is_trashed=False).count()
 
-    ['total'] or 0
     recent_notes = Note.objects.filter(user=request.user, is_trashed=False).order_by('-updated_at')[:5]
     favorite_notes = Note.objects.filter(user=request.user, is_favorite=True, is_trashed=False)[:5]
     return render(request, 'main/dashboard.html', {
         'notes_count': notes_count,
         'folders_count': folders_count,
         'favorites_count': favorites_count,
-    
         'recent_notes': recent_notes,
         'favorite_notes': favorite_notes,
     })
