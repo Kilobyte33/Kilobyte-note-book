@@ -172,7 +172,9 @@ STORAGES = {
     },
 }
 
+# Set to False to prevent 500 errors if a static file is missing from the manifest
 WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_USE_FINDERS = True
 
 # Authentication Settings
 LOGIN_URL = 'login'
