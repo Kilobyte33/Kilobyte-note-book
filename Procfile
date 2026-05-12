@@ -1,1 +1,1 @@
-web: gunicorn markdown_notes_app.wsgi
+web: gunicorn myproject.wsgi
