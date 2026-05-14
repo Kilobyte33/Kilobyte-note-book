@@ -17,9 +17,9 @@
     {% if user.is_authenticated and not hide_sidebar %}
     <div class="app-container">
         <header class="mobile-topbar">
-            <button type="button" class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
-                <i data-lucide="menu"></i>
-            </button>
+            <a href="{% url 'home' %}#new-note-form" class="mobile-menu-btn" aria-label="New Note" title="New Note">
+                <i data-lucide="plus"></i>
+            </a>
             <a href="{% url 'dashboard' %}" class="mobile-brand" aria-label="Go to dashboard">
                 <span class="logo-icon">K</span>
                 <span class="mobile-brand-text">Kilobyte Note Book</span>
@@ -132,10 +132,6 @@
                 <span>Settings</span>
             </a>
         </nav>
-
-        <a href="{% url 'home' %}#new-note-form" class="fab" title="New Note">
-            <i data-lucide="plus"></i>
-        </a>
     </div>
     {% else %}
         <div class="auth-wrapper">
@@ -158,17 +154,19 @@
             const close = document.getElementById('sidebar-close');
             const overlay = document.getElementById('sidebar-overlay');
 
-            if (!sidebar || !toggle || !overlay) return;
+            if (!sidebar || !overlay) return;
 
             function setMenuOpen(isOpen) {
                 sidebar.classList.toggle('open', isOpen);
                 document.body.classList.toggle('nav-open', isOpen);
-                toggle.setAttribute('aria-expanded', String(isOpen));
+                if (toggle) toggle.setAttribute('aria-expanded', String(isOpen));
             }
 
-            toggle.addEventListener('click', function () {
-                setMenuOpen(!sidebar.classList.contains('open'));
-            });
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    setMenuOpen(!sidebar.classList.contains('open'));
+                });
+            }
 
             if (close) {
                 close.addEventListener('click', function () {
