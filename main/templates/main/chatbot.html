@@ -176,11 +176,37 @@
   .msg-time {
     font-size: 0.68rem;
     color: var(--text-muted);
-    margin-top: 4px;
-    text-align: right;
   }
 
-  .user-row .msg-time { text-align: left; }
+  .msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 4px;
+  }
+  .user-row .msg-meta {
+    justify-content: flex-start;
+  }
+  .bot-row .msg-meta {
+    justify-content: flex-end;
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s;
+  }
+  .copy-btn:hover {
+    opacity: 1;
+    color: var(--text-primary);
+  }
 
   /* ── Typing Indicator ──────────────────────────────────── */
   .typing-indicator {
@@ -420,7 +446,12 @@
           👋 Hello <strong>{{ user.username }}</strong>! I'm Kibo, your note-taking assistant.
           Type <strong>help</strong> to see what I can do, or just ask away!
         </div>
-        <div class="msg-time">Just now</div>
+        <div class="msg-meta">
+          <div class="msg-time">Just now</div>
+          <button class="copy-btn" onclick="copyText(this)" title="Copy message">
+            <i data-lucide="copy" style="width: 12px; height: 12px;"></i>
+          </button>
+        </div>
       </div>
     </div>
     {% else %}
@@ -438,7 +469,12 @@
             </div>
             {% endif %}
           </div>
-          <div class="msg-time">{{ chat.created_at|date:"H:i" }}</div>
+          <div class="msg-meta">
+            <div class="msg-time">{{ chat.created_at|date:"H:i" }}</div>
+            <button class="copy-btn" onclick="copyText(this)" title="Copy message">
+              <i data-lucide="copy" style="width: 12px; height: 12px;"></i>
+            </button>
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -541,6 +577,26 @@
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  /* ── Copy Text ──────────────────────────────────────────── */
+  function copyText(btn) {
+    const bubble = btn.closest('.msg-meta').previousElementSibling;
+    if (!bubble || !bubble.classList.contains('msg-bubble')) return;
+    
+    const textToCopy = bubble.innerText;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<i data-lucide="check" style="width: 12px; height: 12px; color: #22c55e;"></i>';
+      lucide.createIcons();
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        lucide.createIcons();
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }
+
   const fileInput = document.getElementById('file-input');
   const previewArea = document.getElementById('file-preview-area');
   const previewContent = document.getElementById('preview-content');
@@ -600,12 +656,24 @@
     
     bubble.innerHTML = htmlContent;
 
+    const metaEl = document.createElement('div');
+    metaEl.className = 'msg-meta';
+    
     const timeEl = document.createElement('div');
     timeEl.className = 'msg-time';
     timeEl.textContent = getTime();
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.title = 'Copy message';
+    copyBtn.onclick = function() { copyText(this); };
+    copyBtn.innerHTML = '<i data-lucide="copy" style="width: 12px; height: 12px;"></i>';
+
+    metaEl.appendChild(timeEl);
+    metaEl.appendChild(copyBtn);
+
     col.appendChild(bubble);
-    col.appendChild(timeEl);
+    col.appendChild(metaEl);
 
     if (sender === 'user') {
       row.appendChild(col);
@@ -705,12 +773,24 @@
       const col = document.createElement('div');
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble bot-bubble';
+      const metaEl = document.createElement('div');
+      metaEl.className = 'msg-meta';
+      
       const timeEl = document.createElement('div');
       timeEl.className = 'msg-time';
       timeEl.textContent = getTime();
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.title = 'Copy message';
+      copyBtn.onclick = function() { copyText(this); };
+      copyBtn.innerHTML = '<i data-lucide="copy" style="width: 12px; height: 12px;"></i>';
+
+      metaEl.appendChild(timeEl);
+      metaEl.appendChild(copyBtn);
       
       col.appendChild(bubble);
-      col.appendChild(timeEl);
+      col.appendChild(metaEl);
       row.appendChild(avatarEl);
       row.appendChild(col);
       messagesEl.appendChild(row);
@@ -782,7 +862,12 @@
                       👋 Hello <strong>{{ user.username }}</strong>! I'm Kibo, your note-taking assistant.
                       Type <strong>help</strong> to see what I can do, or just ask away!
                     </div>
-                    <div class="msg-time">Just now</div>
+                    <div class="msg-meta">
+                      <div class="msg-time">Just now</div>
+                      <button class="copy-btn" onclick="copyText(this)" title="Copy message">
+                        <i data-lucide="copy" style="width: 12px; height: 12px;"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
             `;

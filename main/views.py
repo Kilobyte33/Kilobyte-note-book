@@ -380,10 +380,10 @@ async def chatbot(request):
                 'parts': [h.message]
             })
 
-        async def event_stream():
+        def event_stream():
             full_reply = ""
             try:
-                async for chunk in get_bot_reply_stream(request.user, user_message, uploaded_file, chat_history_list):
+                for chunk in get_bot_reply_stream_sync(request.user, user_message, uploaded_file, chat_history_list):
                     if chunk:
                         full_reply += chunk
                         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
@@ -392,7 +392,7 @@ async def chatbot(request):
             
             # Save bot reply to DB before DONE signal
             if full_reply:
-                await sync_to_async(ChatMessage.objects.create)(
+                ChatMessage.objects.create(
                     user=request.user, 
                     role='bot', 
                     message=full_reply
@@ -450,7 +450,7 @@ def extract_text_from_file(uploaded_file):
     except:
         return "[Unsupported binary file format]"
 
-async def get_bot_reply_stream(user, message, uploaded_file=None, chat_history=None):
+def get_bot_reply_stream_sync(user, message, uploaded_file=None, chat_history=None):
     """Advanced AI chatbot with document understanding and memory (Streaming)."""
     msg = message.lower().strip() if message else ""
     username = user.username
@@ -507,7 +507,7 @@ async def get_bot_reply_stream(user, message, uploaded_file=None, chat_history=N
                     contents.append(img)
                     contents.append(f"[User uploaded an image: {uploaded_file.name}]")
                 else:
-                    file_text = await sync_to_async(extract_text_from_file)(uploaded_file)
+                    file_text = extract_text_from_file(uploaded_file)
                     contents.append(f"\n\n[Uploaded Document Content: {uploaded_file.name}]\n{file_text}")
             
             if message:
@@ -515,9 +515,9 @@ async def get_bot_reply_stream(user, message, uploaded_file=None, chat_history=N
             else:
                 contents.append("I have uploaded a document. Please analyze it and provide a summary.")
 
-            # Streaming async call
-            response = await chat.send_message_async(contents, stream=True)
-            async for chunk in response:
+            # Streaming sync call
+            response = chat.send_message(contents, stream=True)
+            for chunk in response:
                 if chunk.text:
                     yield chunk.text
                     
@@ -528,7 +528,7 @@ async def get_bot_reply_stream(user, message, uploaded_file=None, chat_history=N
         if any(g in msg for g in ['hello', 'hi', 'hey', 'howdy']):
             yield f"Hey {username}! 👋 I'm currently running in offline mode. How can I help you?"
         elif any(p in msg for p in ['how many notes', 'note count']):
-            count = await sync_to_async(lambda: Note.objects.filter(user=user, is_trashed=False).count())()
+            count = Note.objects.filter(user=user, is_trashed=False).count()
             yield f"You currently have **{count} notes** 📝."
         elif any(p in msg for p in ['help', 'commands']):
             yield "I can help with notes, folders, and markdown. (Tip: Configure a Gemini API Key for full AI power!)"
