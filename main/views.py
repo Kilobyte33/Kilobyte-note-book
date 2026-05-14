@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import models
 from django.db.models import Sum
@@ -9,15 +9,16 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.utils import timezone
 from datetime import timedelta
-from main.models import ChatMessage # Keep this for history loading
-from django.shortcuts import get_object_or_404, redirect
 import json
 import zipfile
 import io
 import re
 import os
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_POST
+from asgiref.sync import sync_to_async
+import asyncio
+
 try:
     from dotenv import load_dotenv
 except Exception:  # pragma: no cover
@@ -327,7 +328,6 @@ def split_editor(request, id):
 
 
 @login_required(login_url='/login/')
-
 def recent_notes(request):
     last_7_days = timezone.now() - timedelta(days=7)
     recent_notes = Note.objects.filter(
@@ -339,8 +339,10 @@ def recent_notes(request):
         'notes': recent_notes
     })
 
-@login_required(login_url='/login/')
-def chatbot(request):
+async def chatbot(request):
+    if not await sync_to_async(lambda: request.user.is_authenticated)():
+        return redirect('/login/')
+
     if request.method == 'POST':
         if request.content_type == 'application/json':
             try:
@@ -360,18 +362,47 @@ def chatbot(request):
 
         # Save user message
         if user_message:
-            ChatMessage.objects.create(user=request.user, role='user', message=user_message, has_attachment=bool(uploaded_file))
+            await sync_to_async(ChatMessage.objects.create)(
+                user=request.user, 
+                role='user', 
+                message=user_message, 
+                has_attachment=bool(uploaded_file)
+            )
 
-        reply = get_bot_reply(request.user, user_message, uploaded_file)
+        # Fetch history before streaming to avoid ORM issues inside the generator
+        history_objs = await sync_to_async(lambda: list(ChatMessage.objects.filter(user=request.user).order_by('-created_at')[:10]))()
+        history_objs = history_objs[::-1]
         
-        # Save bot reply
-        ChatMessage.objects.create(user=request.user, role='bot', message=reply)
-        
-        return JsonResponse({'reply': reply})
+        chat_history_list = []
+        for h in history_objs:
+            chat_history_list.append({
+                'role': 'user' if h.role == 'user' else 'model',
+                'parts': [h.message]
+            })
 
-    # Load history for GET request
-    history = ChatMessage.objects.filter(user=request.user).order_by('created_at')
-    return render(request, 'main/chatbot.html', {'chat_history': history})
+        async def event_stream():
+            full_reply = ""
+            try:
+                async for chunk in get_bot_reply_stream(request.user, user_message, uploaded_file, chat_history_list):
+                    if chunk:
+                        full_reply += chunk
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+            # Save bot reply to DB before DONE signal
+            if full_reply:
+                await sync_to_async(ChatMessage.objects.create)(
+                    user=request.user, 
+                    role='bot', 
+                    message=full_reply
+                )
+            yield "data: [DONE]\n\n"
+
+        return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+
+    history = await sync_to_async(lambda: list(ChatMessage.objects.filter(user=request.user).order_by('created_at')))()
+    return await sync_to_async(render)(request, 'main/chatbot.html', {'chat_history': history})
 
 @login_required(login_url='/login/')
 def clear_chat(request):
@@ -419,8 +450,8 @@ def extract_text_from_file(uploaded_file):
     except:
         return "[Unsupported binary file format]"
 
-def get_bot_reply(user, message, uploaded_file=None):
-    """Advanced AI chatbot with document understanding and memory."""
+async def get_bot_reply_stream(user, message, uploaded_file=None, chat_history=None):
+    """Advanced AI chatbot with document understanding and memory (Streaming)."""
     msg = message.lower().strip() if message else ""
     username = user.username
 
@@ -428,7 +459,7 @@ def get_bot_reply(user, message, uploaded_file=None):
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key and genai:
         try:
-            # Comprehensive System Instructions: UNSTOPPABLE VERSION
+            # Comprehensive System Instructions
             system_instructions = (
                 "You are Kibo, an advanced AI assistant with persistent conversational memory and expert document understanding, integrated into Kilobyte Note Book.\n\n"
                 "Document Processing Rules:\n"
@@ -458,18 +489,13 @@ def get_bot_reply(user, message, uploaded_file=None):
             )
 
             model = genai.GenerativeModel(
-                model_name='gemini-2.5-flash',
+                model_name='gemini-flash-latest',
                 system_instruction=system_instructions
             )
             
-            # Retrieve last 15 messages for context
-            history_objs = ChatMessage.objects.filter(user=user).order_by('-created_at')[:15][::-1]
-            chat_history = []
-            for h in history_objs:
-                chat_history.append({
-                    'role': 'user' if h.role == 'user' else 'model',
-                    'parts': [h.message]
-                })
+            # Use provided chat_history
+            if chat_history is None:
+                chat_history = []
 
             chat = model.start_chat(history=chat_history)
             
@@ -481,7 +507,7 @@ def get_bot_reply(user, message, uploaded_file=None):
                     contents.append(img)
                     contents.append(f"[User uploaded an image: {uploaded_file.name}]")
                 else:
-                    file_text = extract_text_from_file(uploaded_file)
+                    file_text = await sync_to_async(extract_text_from_file)(uploaded_file)
                     contents.append(f"\n\n[Uploaded Document Content: {uploaded_file.name}]\n{file_text}")
             
             if message:
@@ -489,21 +515,22 @@ def get_bot_reply(user, message, uploaded_file=None):
             else:
                 contents.append("I have uploaded a document. Please analyze it and provide a summary.")
 
-            response = chat.send_message(contents)
-            return response.text
+            # Streaming async call
+            response = await chat.send_message_async(contents, stream=True)
+            async for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+                    
         except Exception as e:
-            return f"I encountered an error while accessing my memory: {str(e)}"
-
-    # ── Fallback (Rule-based) ────────────────────────────────────────────────
-    if any(g in msg for g in ['hello', 'hi', 'hey', 'howdy']):
-        return f"Hey {username}! 👋 I'm currently running in offline mode. How can I help you?"
-
-    if any(p in msg for p in ['how many notes', 'note count']):
-        from main.models import Note
-        count = Note.objects.filter(user=user, is_trashed=False).count()
-        return f"You currently have **{count} notes** 📝."
-
-    if any(p in msg for p in ['help', 'commands']):
-        return "I can help with notes, folders, and markdown. (Tip: Configure a Gemini API Key for full AI power!)"
-
-    return "I'm currently in basic mode. Please configure a Gemini API key in the .env file for full AI features!"
+            yield f"I encountered an error while accessing my memory: {str(e)}"
+    else:
+        # Fallback (Rule-based)
+        if any(g in msg for g in ['hello', 'hi', 'hey', 'howdy']):
+            yield f"Hey {username}! 👋 I'm currently running in offline mode. How can I help you?"
+        elif any(p in msg for p in ['how many notes', 'note count']):
+            count = await sync_to_async(lambda: Note.objects.filter(user=user, is_trashed=False).count())()
+            yield f"You currently have **{count} notes** 📝."
+        elif any(p in msg for p in ['help', 'commands']):
+            yield "I can help with notes, folders, and markdown. (Tip: Configure a Gemini API Key for full AI power!)"
+        else:
+            yield "I'm currently in basic mode. Please configure a Gemini API key in the .env file for full AI features!"

@@ -4,6 +4,8 @@
 {% block title %}Kibo Chat | Kilobyte Note Book{% endblock %}
 
 {% block extra_head %}
+<!-- Markdown-it for fast rendering -->
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 <style>
   /* ── Chat Layout ───────────────────────────────────────── */
   .chat-wrapper {
@@ -13,6 +15,12 @@
     max-width: 820px;
     margin: 0 auto;
     gap: 0;
+  }
+
+  @media (max-width: 900px) {
+    .chat-wrapper {
+      height: calc(100dvh - 64px - 72px - 2rem); /* topbar + bottomnav + extra padding */
+    }
   }
 
   /* ── Header ────────────────────────────────────────────── */
@@ -481,6 +489,13 @@
   const inputEl     = document.getElementById('chat-input');
   const sendBtn     = document.getElementById('send-btn');
   const chipsEl     = document.getElementById('suggestion-chips');
+  
+  // Initialize Markdown-it
+  const md = window.markdownit({
+    html: true,
+    linkify: true,
+    typographer: true
+  });
   function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -517,20 +532,7 @@
 
   /* ── Render simple markdown to HTML ────────────────────── */
   function renderMarkdown(text) {
-    const html = (text || "")
-      // Bold **text**
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      // Italic *text*
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      // Inline code `code`
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // Bullet list lines starting with -
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      // Wrap consecutive <li> in <ul>
-      .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-      // Line breaks
-      .replace(/\n/g, '<br>');
-    return (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
+    return md.render(text || "");
   }
 
   /* ── Timestamp ──────────────────────────────────────────── */
@@ -643,7 +645,7 @@
     if (row) row.remove();
   }
 
-  /* ── Main send function ──────────────────────────────────── */
+  /* ── Main send function (SSE Version) ───────────────────── */
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text && !selectedFile) return;
@@ -666,13 +668,13 @@
     showTyping();
 
     try {
-      let resp;
+      let response;
       if (fileToSend) {
         const formData = new FormData();
         formData.append('message', text);
         formData.append('file', fileToSend);
         
-        resp = await fetch('{% url "chatbot" %}', {
+        response = await fetch('{% url "chatbot" %}', {
           method: 'POST',
           headers: {
             'X-CSRFToken': CSRF_TOKEN,
@@ -680,7 +682,7 @@
           body: formData,
         });
       } else {
-        resp = await fetch('{% url "chatbot" %}', {
+        response = await fetch('{% url "chatbot" %}', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -690,12 +692,60 @@
         });
       }
 
-      const data = await resp.json();
+      if (!response.ok) throw new Error('Network response was not ok');
 
-      // Simulate a tiny delay so typing feels natural
-      await new Promise(r => setTimeout(r, 300));
+      // Create a bot bubble for streaming
       hideTyping();
-      appendMessage(data.reply || "Sorry, I couldn't process that.", 'bot');
+      
+      const row = document.createElement('div');
+      row.className = 'msg-row bot-row';
+      const avatarEl = document.createElement('div');
+      avatarEl.className = 'msg-avatar bot-msg-avatar';
+      avatarEl.textContent = 'K';
+      const col = document.createElement('div');
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble bot-bubble';
+      const timeEl = document.createElement('div');
+      timeEl.className = 'msg-time';
+      timeEl.textContent = getTime();
+      
+      col.appendChild(bubble);
+      col.appendChild(timeEl);
+      row.appendChild(avatarEl);
+      row.appendChild(col);
+      messagesEl.appendChild(row);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') break;
+            
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.chunk) {
+                fullText += data.chunk;
+                bubble.innerHTML = renderMarkdown(fullText);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              } else if (data.error) {
+                bubble.innerHTML = `<span style="color: #ef4444;">${data.error}</span>`;
+              }
+            } catch (e) {
+              console.error("Error parsing SSE chunk:", e);
+            }
+          }
+        }
+      }
 
     } catch (err) {
       hideTyping();

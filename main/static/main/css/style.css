@@ -84,6 +84,8 @@ body {
 }
 
 .mobile-topbar,
+.mobile-bottom-nav,
+.fab,
 .sidebar-overlay,
 .sidebar-close {
     display: none;
@@ -640,7 +642,82 @@ input:focus, textarea:focus {
         margin-left: 0;
         width: 100%;
         min-height: 100dvh;
-        padding: 88px 1rem 1.5rem;
+        padding: 80px 1rem 100px; /* Topbar (64px) + Bottom Nav (72px) + breathing room */
+    }
+
+    /* Bottom Navigation Bar */
+    .mobile-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 72px;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 0 0.5rem;
+        z-index: 950;
+        backdrop-filter: blur(12px);
+        background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+    }
+
+    .bottom-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.7rem;
+        font-weight: 600;
+        flex: 1;
+        height: 100%;
+        transition: all 0.2s;
+    }
+
+    .bottom-nav-item i {
+        width: 22px;
+        height: 22px;
+    }
+
+    .bottom-nav-item.active {
+        color: var(--primary);
+    }
+
+    .bottom-nav-item.active i {
+        fill: var(--primary-light);
+    }
+
+    /* Floating Action Button */
+    .fab {
+        position: fixed;
+        bottom: 88px; /* Above bottom nav */
+        right: 1.25rem;
+        width: 56px;
+        height: 56px;
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+        z-index: 940;
+        text-decoration: none;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .fab:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+    }
+
+    .fab i {
+        width: 28px;
+        height: 28px;
     }
 }
 

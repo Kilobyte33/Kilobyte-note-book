@@ -109,6 +109,33 @@
             
             {% block content %}{% endblock %}
         </main>
+
+        <nav class="mobile-bottom-nav">
+            <a href="{% url 'dashboard' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i data-lucide="home"></i>
+                <span>Home</span>
+            </a>
+            <a href="{% url 'home' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                <i data-lucide="file-text"></i>
+                <span>Notes</span>
+            </a>
+            <a href="{% url 'folders' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'folders' %}active{% endif %}">
+                <i data-lucide="folder"></i>
+                <span>Folders</span>
+            </a>
+            <a href="{% url 'chatbot' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'chatbot' %}active{% endif %}">
+                <i data-lucide="bot"></i>
+                <span>Chat</span>
+            </a>
+            <a href="{% url 'settings' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                <i data-lucide="settings"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <a href="{% url 'home' %}#new-note-form" class="fab" title="New Note">
+            <i data-lucide="plus"></i>
+        </a>
     </div>
     {% else %}
         <div class="auth-wrapper">
